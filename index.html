@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Git Grapher</title>
+    <meta name="description" content="Git Grapher is a browser-based Git graph simulator with branch, commit, merge request, tag, and graph export flows.">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon.png">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-mark" src="logo.png" alt="" aria-hidden="true">
+          <div>
+            <h1>Git Grapher</h1>
+            <p id="stateSummary">Ready</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <fieldset class="segmented" aria-label="Root branch name">
+            <legend>Root</legend>
+            <label>
+              <input type="radio" name="rootBranchName" value="main" checked>
+              <span>main</span>
+            </label>
+            <label>
+              <input type="radio" name="rootBranchName" value="master">
+              <span>master</span>
+            </label>
+          </fieldset>
+          <button class="button button-secondary" id="resetButton" type="button">Reset</button>
+          <button class="button button-secondary" id="exportGraphButton" type="button">Export PNG</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="graph-panel" aria-labelledby="graphTitle">
+          <div class="graph-toolbar">
+            <div>
+              <p class="eyebrow">Graph</p>
+              <h2 id="graphTitle">Repository history</h2>
+            </div>
+            <div class="branch-legend" id="branchLegend" aria-label="Branches"></div>
+          </div>
+          <div class="graph-body">
+            <div class="branch-axis" id="branchAxis" aria-label="Branch lanes"></div>
+            <div class="graph-scroll" id="graphScroll">
+              <svg id="gitGraph" role="img" aria-label="Horizontal Git graph"></svg>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-panel" aria-label="Repository state">
+          <section class="panel-section collapsible-panel" data-panel="branches">
+            <div class="section-heading">
+              <h2>Branches</h2>
+              <button class="panel-toggle" type="button" data-panel-toggle="branches" aria-expanded="true" aria-controls="branchesPanelBody">
+                <span class="panel-toggle-icon" aria-hidden="true">-</span>
+                <span class="sr-only">Toggle branches panel</span>
+              </button>
+            </div>
+            <div class="panel-body" id="branchesPanelBody">
+              <label class="field">
+                <span>Current branch</span>
+                <select id="currentBranchSelect"></select>
+              </label>
+              <div class="branch-list" id="branchList"></div>
+            </div>
+          </section>
+
+          <section class="panel-section merge-request-section collapsible-panel" data-panel="mergeRequests">
+            <div class="section-heading">
+              <h2>Merge requests</h2>
+              <button class="panel-toggle" type="button" data-panel-toggle="mergeRequests" aria-expanded="true" aria-controls="mergeRequestsPanelBody">
+                <span class="panel-toggle-icon" aria-hidden="true">-</span>
+                <span class="sr-only">Toggle merge requests panel</span>
+              </button>
+            </div>
+            <div class="panel-body" id="mergeRequestsPanelBody">
+              <div class="mr-list" id="mergeRequestList"></div>
+            </div>
+          </section>
+
+          <section class="panel-section action-log-section collapsible-panel" data-panel="actionLog">
+            <div class="section-heading">
+              <h2>Action log</h2>
+              <button class="panel-toggle" type="button" data-panel-toggle="actionLog" aria-expanded="true" aria-controls="actionLogPanelBody">
+                <span class="panel-toggle-icon" aria-hidden="true">-</span>
+                <span class="sr-only">Toggle action log panel</span>
+              </button>
+            </div>
+            <div class="panel-body" id="actionLogPanelBody">
+              <ol class="action-log" id="actionLog"></ol>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <footer class="action-bar">
+        <button class="button button-success create-branch-button" id="openCreateBranchModal" type="button">Create Branch</button>
+
+        <section class="selected-panel" aria-labelledby="selectedTitle">
+          <div>
+            <p class="eyebrow">Selected</p>
+            <h2 id="selectedTitle">Commit</h2>
+          </div>
+          <div id="selectedCommitDetails" class="selected-details"></div>
+        </section>
+
+        <section class="selected-actions" id="selectedActions" aria-label="Selected commit actions" hidden>
+          <button class="button button-primary" id="openCommitModal" type="button">Add commit</button>
+          <button class="button button-primary" id="openMergeRequestModal" type="button">Create MR</button>
+          <button class="button button-warning" id="openTagModal" type="button">Create Tag</button>
+          <button class="button button-danger" id="deleteCommitButton" type="button">Delete Node</button>
+          <button class="button button-secondary" id="deselectButton" type="button">Deselect</button>
+        </section>
+      </footer>
+
+      <div class="modal-backdrop" id="createBranchModal" hidden>
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="createBranchTitle">
+          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+          <h2 id="createBranchTitle">Create a branch</h2>
+          <form class="modal-form" id="createBranchForm">
+            <label class="field">
+              <span>Branch Name</span>
+              <input id="branchName" type="text" maxlength="32" autocomplete="off">
+            </label>
+            <fieldset class="field branch-source-field">
+              <legend>Create branch from</legend>
+              <div class="choice-group" id="branchSourceChoices"></div>
+            </fieldset>
+            <label class="field">
+              <span>First Commit Message</span>
+              <input id="branchFirstCommitMessage" type="text" maxlength="80" value="create new branch" autocomplete="off">
+            </label>
+            <p class="feedback" id="createBranchFeedback" aria-live="polite"></p>
+            <div class="modal-actions">
+              <button class="button button-primary" type="submit">Create</button>
+              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="modal-backdrop" id="commitModal" hidden>
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="commitModalTitle">
+          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+          <h2 id="commitModalTitle">Add commit</h2>
+          <form class="modal-form" id="commitForm">
+            <p class="modal-context" id="commitModalContext"></p>
+            <label class="field">
+              <span>Commit Message</span>
+              <input id="commitMessage" type="text" maxlength="80" placeholder="Add login screen" autocomplete="off">
+            </label>
+            <p class="feedback" id="commitFeedback" aria-live="polite"></p>
+            <div class="modal-actions">
+              <button class="button button-primary" type="submit">Create commit</button>
+              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="modal-backdrop" id="mergeRequestModal" hidden>
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeRequestModalTitle">
+          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+          <h2 id="mergeRequestModalTitle">Create merge request</h2>
+          <form class="modal-form" id="mergeRequestForm">
+            <label class="field">
+              <span>Source</span>
+              <select id="mrSource"></select>
+            </label>
+            <label class="field">
+              <span>Target</span>
+              <select id="mrTarget"></select>
+            </label>
+            <label class="field">
+              <span>Title</span>
+              <input id="mrTitle" type="text" maxlength="80" placeholder="Merge feature into main">
+            </label>
+            <p class="feedback" id="mergeRequestFeedback" aria-live="polite"></p>
+            <div class="modal-actions">
+              <button class="button button-primary" type="submit">Create MR</button>
+              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="modal-backdrop" id="tagModal" hidden>
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="tagModalTitle">
+          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+          <h2 id="tagModalTitle">Create tag</h2>
+          <form class="modal-form" id="tagForm">
+            <p class="modal-context" id="tagModalContext"></p>
+            <label class="field">
+              <span>Tag Name</span>
+              <input id="tagName" type="text" maxlength="32" placeholder="v1.0.0" autocomplete="off">
+            </label>
+            <p class="feedback" id="tagFeedback" aria-live="polite"></p>
+            <div class="modal-actions">
+              <button class="button button-primary" type="submit">Create tag</button>
+              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="modal-backdrop" id="deleteModal" hidden>
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+          <h2 id="deleteModalTitle">Confirm delete</h2>
+          <p class="modal-context" id="deleteModalMessage"></p>
+          <p class="feedback" id="deleteFeedback" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-danger" id="confirmDeleteButton" type="button">Delete</button>
+            <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
