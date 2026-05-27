@@ -1,4 +1,4 @@
-import { BRANCH_COLORS, PANEL_IDS, ROOT_NAMES, STORAGE_KEY } from "./config.js";
+import { BRANCH_COLORS, GRAPH_ORIENTATIONS, PANEL_IDS, ROOT_NAMES, STORAGE_KEY } from "./config.js";
 
 export function nowIso() {
   return new Date().toISOString();
@@ -9,7 +9,7 @@ export function createInitialState(rootName) {
   var createdAt = nowIso();
 
   return {
-    settings: { rootBranchName: name },
+    settings: { rootBranchName: name, graphOrientation: "horizontal" },
     branches: [
       {
         id: "root",
@@ -83,6 +83,9 @@ export function normalizeState(nextState) {
   nextState.settings.rootBranchName = ROOT_NAMES.indexOf(nextState.settings.rootBranchName) >= 0
     ? nextState.settings.rootBranchName
     : "main";
+  nextState.settings.graphOrientation = GRAPH_ORIENTATIONS.indexOf(nextState.settings.graphOrientation) >= 0
+    ? nextState.settings.graphOrientation
+    : "horizontal";
   nextState.mergeRequests = Array.isArray(nextState.mergeRequests) ? nextState.mergeRequests : [];
   nextState.tags = Array.isArray(nextState.tags) ? nextState.tags : [];
   nextState.actions = Array.isArray(nextState.actions) ? nextState.actions : [];

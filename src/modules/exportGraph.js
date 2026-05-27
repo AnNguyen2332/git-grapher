@@ -43,6 +43,7 @@ function buildExportSvg(context) {
   var state = context.state;
   var els = context.els;
   var getBranch = context.getBranch;
+  var orientation = state.settings && state.settings.graphOrientation === "vertical" ? "vertical" : "horizontal";
   var source = els.gitGraph.cloneNode(true);
   var viewBox = (source.getAttribute("viewBox") || "0 0 980 420")
     .split(/\s+/)
@@ -50,27 +51,28 @@ function buildExportSvg(context) {
   var graphWidth = viewBox[2] || Number(source.getAttribute("width")) || 980;
   var graphHeight = viewBox[3] || Number(source.getAttribute("height")) || 420;
   var axisWidth = GRAPH_LAYOUT.branchAxisWidth;
-  var exportWidth = graphWidth + axisWidth;
+  var exportWidth = orientation === "vertical" ? graphWidth : graphWidth + axisWidth;
+  var exportHeight = orientation === "vertical" ? graphHeight + axisWidth : graphHeight;
 
   var output = svgEl("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     width: String(exportWidth),
-    height: String(graphHeight),
-    viewBox: "0 0 " + exportWidth + " " + graphHeight,
+    height: String(exportHeight),
+    viewBox: "0 0 " + exportWidth + " " + exportHeight,
   });
 
   var style = svgEl("style");
   style.textContent = [
-    ".svg-lane{stroke:#e5e7eb;stroke-width:2;stroke-dasharray:5 8}",
+    ".svg-lane{stroke:#dbe4ef;stroke-width:2;stroke-dasharray:7 9}",
     ".svg-edge{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:6}",
-    ".svg-edge.merge-edge{stroke-dasharray:8 8}",
-    ".svg-node{stroke:#ffffff;stroke-width:3}",
-    ".svg-node.is-selected{stroke:#f97316;stroke-width:7}",
-    ".svg-message,.svg-branch-label,.svg-tag-label,.svg-commit-id{font-family:Consolas,'Liberation Mono',monospace}",
-    ".svg-message{fill:#27272a;font-size:12px}",
-    ".svg-commit-id{fill:#71717a;font-size:11px}",
-    ".svg-branch-label{fill:#18181b;font-size:12px;font-weight:700}",
-    ".svg-tag-label{fill:#9a3412;font-size:11px;font-weight:700}",
+    ".svg-edge.merge-edge{stroke-dasharray:10 8}",
+    ".svg-selected-ring{fill:none;opacity:.32;stroke:#f97316;stroke-width:4}",
+    ".svg-node{stroke-width:6}",
+    ".svg-message,.svg-branch-label,.svg-tag-label,.svg-commit-id{font-family:Inter,Arial,sans-serif}",
+    ".svg-message{fill:#64748b;font-size:11px}",
+    ".svg-commit-id{fill:#64748b;font-size:10px;font-weight:800}",
+    ".svg-branch-label{fill:#020617;font-size:12px;font-weight:800}",
+    ".svg-tag-label{fill:#c2410c;font-size:10px;font-weight:800;text-anchor:middle;dominant-baseline:middle}",
     ".svg-tag-line{stroke:#f97316;stroke-width:1.5;stroke-dasharray:3 4}",
   ].join("\n");
   output.appendChild(style);
@@ -79,13 +81,20 @@ function buildExportSvg(context) {
     x: "0",
     y: "0",
     width: String(exportWidth),
-    height: String(graphHeight),
+    height: String(exportHeight),
     fill: "#ffffff",
   }));
 
-  appendExportBranchAxis({ state: state, svg: output, height: graphHeight, getBranch: getBranch });
-  source.setAttribute("x", String(axisWidth));
-  source.setAttribute("y", "0");
+  appendExportBranchAxis({
+    state: state,
+    svg: output,
+    width: graphWidth,
+    height: graphHeight,
+    orientation: orientation,
+    getBranch: getBranch,
+  });
+  source.setAttribute("x", orientation === "vertical" ? "0" : String(axisWidth));
+  source.setAttribute("y", orientation === "vertical" ? String(axisWidth) : "0");
   source.setAttribute("width", String(graphWidth));
   source.setAttribute("height", String(graphHeight));
   source.setAttribute("viewBox", "0 0 " + graphWidth + " " + graphHeight);
@@ -94,30 +103,33 @@ function buildExportSvg(context) {
   return {
     svg: output,
     width: exportWidth,
-    height: graphHeight,
+    height: exportHeight,
   };
 }
 
 function appendExportBranchAxis(context) {
   var state = context.state;
   var svg = context.svg;
+  var width = context.width;
   var height = context.height;
+  var orientation = context.orientation;
   var axisWidth = GRAPH_LAYOUT.branchAxisWidth;
 
   svg.appendChild(svgEl("rect", {
     x: "0",
     y: "0",
-    width: String(axisWidth),
-    height: String(height),
-    fill: "#fafafa",
-    stroke: "#e5e7eb",
+    width: String(orientation === "vertical" ? width : axisWidth),
+    height: String(orientation === "vertical" ? axisWidth : height),
+    fill: "#f8fafc",
+    stroke: "#e2e8f0",
     "stroke-width": "1",
   }));
 
   state.branches.forEach(function (branch) {
-    var y = GRAPH_LAYOUT.margin.top + branch.lane * GRAPH_LAYOUT.laneGap;
+    var x = orientation === "vertical" ? GRAPH_LAYOUT.margin.left + branch.lane * GRAPH_LAYOUT.laneGap : 22;
+    var y = orientation === "vertical" ? 58 : GRAPH_LAYOUT.margin.top + branch.lane * GRAPH_LAYOUT.laneGap;
     svg.appendChild(svgEl("circle", {
-      cx: "22",
+      cx: String(x),
       cy: String(y),
       r: "5",
       fill: branch.color,
@@ -125,8 +137,9 @@ function appendExportBranchAxis(context) {
 
     var text = svgEl("text", {
       class: "svg-branch-label",
-      x: "36",
-      y: String(y + 4),
+      x: String(orientation === "vertical" ? x : 36),
+      y: String(orientation === "vertical" ? y + 22 : y + 4),
+      "text-anchor": orientation === "vertical" ? "middle" : "start",
     });
     text.textContent = branch.name;
     svg.appendChild(text);
