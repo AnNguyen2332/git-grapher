@@ -31,6 +31,17 @@
               <span>master</span>
             </label>
           </fieldset>
+          <fieldset class="segmented" aria-label="Graph direction">
+            <legend>Direction</legend>
+            <label>
+              <input type="radio" name="graphOrientation" value="horizontal" checked>
+              <span>Horizontal</span>
+            </label>
+            <label>
+              <input type="radio" name="graphOrientation" value="vertical">
+              <span>Vertical</span>
+            </label>
+          </fieldset>
           <button class="button button-secondary" id="resetButton" type="button">Reset</button>
           <button class="button button-secondary" id="exportGraphButton" type="button">Export PNG</button>
         </div>
@@ -54,7 +65,7 @@
         </section>
 
         <aside class="side-panel" aria-label="Repository state">
-          <section class="panel-section collapsible-panel" data-panel="branches">
+          <section class="panel-section branches-section collapsible-panel" data-panel="branches">
             <div class="section-heading">
               <h2>Branches</h2>
               <button class="panel-toggle" type="button" data-panel-toggle="branches" aria-expanded="true" aria-controls="branchesPanelBody">
@@ -100,8 +111,6 @@
       </main>
 
       <footer class="action-bar">
-        <button class="button button-success create-branch-button" id="openCreateBranchModal" type="button">Create Branch</button>
-
         <section class="selected-panel" aria-labelledby="selectedTitle">
           <div>
             <p class="eyebrow">Selected</p>
@@ -110,12 +119,15 @@
           <div id="selectedCommitDetails" class="selected-details"></div>
         </section>
 
-        <section class="selected-actions" id="selectedActions" aria-label="Selected commit actions" hidden>
-          <button class="button button-primary" id="openCommitModal" type="button">Add commit</button>
-          <button class="button button-primary" id="openMergeRequestModal" type="button">Create MR</button>
-          <button class="button button-warning" id="openTagModal" type="button">Create Tag</button>
-          <button class="button button-danger" id="deleteCommitButton" type="button">Delete Node</button>
-          <button class="button button-secondary" id="deselectButton" type="button">Deselect</button>
+        <section class="action-controls" aria-label="Repository actions">
+          <button class="button button-dark create-branch-button" id="openCreateBranchModal" type="button">Create Branch</button>
+          <span class="selected-actions" id="selectedActions" aria-label="Selected commit actions" hidden>
+            <button class="button button-primary" id="openCommitModal" type="button">Add commit</button>
+            <button class="button button-primary" id="openMergeRequestModal" type="button">Create MR</button>
+            <button class="button button-primary" id="openTagModal" type="button">Create Tag</button>
+            <button class="button button-danger" id="deleteCommitButton" type="button">Delete Node</button>
+            <button class="button button-secondary" id="deselectButton" type="button">Deselect</button>
+          </span>
         </section>
       </footer>
 
@@ -129,8 +141,14 @@
               <input id="branchName" type="text" maxlength="32" autocomplete="off">
             </label>
             <fieldset class="field branch-source-field">
-              <legend>Create branch from</legend>
+              <legend>
+                <label class="option-toggle">
+                  <input id="branchFromEnabled" type="checkbox" checked>
+                  <span>Create branch from</span>
+                </label>
+              </legend>
               <div class="choice-group" id="branchSourceChoices"></div>
+              <small class="field-hint">Uncheck to start a new independent branch.</small>
             </fieldset>
             <label class="field">
               <span>First Commit Message</span>
@@ -202,7 +220,8 @@
             </label>
             <p class="feedback" id="tagFeedback" aria-live="polite"></p>
             <div class="modal-actions">
-              <button class="button button-primary" type="submit">Create tag</button>
+              <button class="button button-primary" id="submitTagButton" type="submit">Create tag</button>
+              <button class="button button-ghost-danger" id="deleteTagButton" type="button" hidden>Delete tag</button>
               <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
             </div>
           </form>

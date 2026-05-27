@@ -1,4 +1,4 @@
-import { BRANCH_COLORS, PANEL_IDS, ROOT_NAMES } from "./modules/config.js";
+import { BRANCH_COLORS, GRAPH_ORIENTATIONS, PANEL_IDS, ROOT_NAMES } from "./modules/config.js";
 import {
   createInitialState,
   loadState,
@@ -14,9 +14,12 @@ import { exportGraphPng } from "./modules/exportGraph.js";
 
 var state = loadState();
 var pendingDelete = null;
+var editingTagId = null;
+var resizeRenderTimer = null;
 
 var els = {
   stateSummary: document.getElementById("stateSummary"),
+  graphPanel: document.querySelector(".graph-panel"),
   resetButton: document.getElementById("resetButton"),
   exportGraphButton: document.getElementById("exportGraphButton"),
   currentBranchSelect: document.getElementById("currentBranchSelect"),
@@ -39,6 +42,7 @@ var els = {
   deselectButton: document.getElementById("deselectButton"),
   createBranchForm: document.getElementById("createBranchForm"),
   branchSourceChoices: document.getElementById("branchSourceChoices"),
+  branchFromEnabled: document.getElementById("branchFromEnabled"),
   branchName: document.getElementById("branchName"),
   branchFirstCommitMessage: document.getElementById("branchFirstCommitMessage"),
   createBranchFeedback: document.getElementById("createBranchFeedback"),
@@ -53,10 +57,13 @@ var els = {
   openTagModal: document.getElementById("openTagModal"),
   deleteCommitButton: document.getElementById("deleteCommitButton"),
   tagModal: document.getElementById("tagModal"),
+  tagModalTitle: document.getElementById("tagModalTitle"),
   tagModalContext: document.getElementById("tagModalContext"),
   tagForm: document.getElementById("tagForm"),
   tagName: document.getElementById("tagName"),
   tagFeedback: document.getElementById("tagFeedback"),
+  submitTagButton: document.getElementById("submitTagButton"),
+  deleteTagButton: document.getElementById("deleteTagButton"),
   deleteModal: document.getElementById("deleteModal"),
   deleteModalTitle: document.getElementById("deleteModalTitle"),
   deleteModalMessage: document.getElementById("deleteModalMessage"),
@@ -142,7 +149,10 @@ function openModal(modal) {
 }
 
 function closeModal(modal) {
-  if (modal) modal.hidden = true;
+  if (!modal) return;
+  var dialog = modal.querySelector(".modal");
+  if (dialog) dialog.classList.remove("is-attention");
+  modal.hidden = true;
 }
 
 function closeAllModals() {
@@ -155,6 +165,31 @@ function closeAllModals() {
   ].forEach(closeModal);
 }
 
+function getOpenModal() {
+  return [
+    els.createBranchModal,
+    els.commitModal,
+    els.mergeRequestModal,
+    els.tagModal,
+    els.deleteModal,
+  ].find(function (modal) {
+    return modal && !modal.hidden;
+  });
+}
+
+function flashModal(modal) {
+  if (!modal || modal.hidden) return;
+  var dialog = modal.querySelector(".modal");
+  if (!dialog) return;
+
+  dialog.classList.remove("is-attention");
+  void dialog.offsetWidth;
+  dialog.classList.add("is-attention");
+  window.setTimeout(function () {
+    dialog.classList.remove("is-attention");
+  }, 520);
+}
+
 function branchOptions() {
   return state.branches.map(function (branch) {
     return { value: branch.id, text: branch.name };
@@ -165,6 +200,7 @@ function render() {
   saveState(state);
   renderPanelState();
   renderRootSwitch();
+  renderGraphOrientationSwitch();
   renderSummary();
   renderBranches();
   renderBranchSourceChoices();
@@ -173,6 +209,11 @@ function render() {
   renderSelectedCommit();
   renderActionLog();
   renderGraph({ state: state, els: els, getBranch: getBranch, getCommit: getCommit });
+}
+
+function scheduleRenderAfterResize() {
+  window.clearTimeout(resizeRenderTimer);
+  resizeRenderTimer = window.setTimeout(render, 120);
 }
 
 function renderPanelState() {
@@ -201,14 +242,20 @@ function renderRootSwitch() {
   });
 }
 
+function renderGraphOrientationSwitch() {
+  document.querySelectorAll("input[name='graphOrientation']").forEach(function (input) {
+    input.checked = input.value === state.settings.graphOrientation;
+  });
+}
+
 function renderSummary() {
   var openMrs = state.mergeRequests.filter(function (mr) {
     return mr.status === "open";
   }).length;
   els.stateSummary.textContent =
-    state.commits.length + " commits, " +
-    state.branches.length + " branches, " +
-    openMrs + " open MRs";
+    state.commits.length + " commits \u00b7 " +
+    state.branches.length + " branches \u00b7 " +
+    openMrs + " open merge requests";
 }
 
 function renderBranches() {
@@ -237,15 +284,12 @@ function renderBranches() {
     meta.textContent = "HEAD " + branch.headCommitId + " / lane " + (branch.lane + 1);
     body.append(title, meta);
     var chip = document.createElement("span");
-    chip.className = "branch-chip";
-    var branchDot = document.createElement("span");
-    branchDot.className = "branch-dot";
-    branchDot.style.backgroundColor = branch.color;
-    chip.append(branchDot, document.createTextNode(branch.role === "root" ? "root" : "branch"));
+    chip.className = branch.role === "root" ? "status-chip" : "branch-chip";
+    chip.textContent = branch.role === "root" ? "root" : "branch";
     row.append(body, chip);
     if (branch.id !== "root") {
       var deleteButton = document.createElement("button");
-      deleteButton.className = "button button-danger mini-button";
+      deleteButton.className = "button button-ghost-danger mini-button";
       deleteButton.type = "button";
       deleteButton.dataset.deleteBranchId = branch.id;
       deleteButton.textContent = "Delete";
@@ -258,6 +302,15 @@ function renderBranches() {
 function getDefaultSourceBranchId() {
   var selectedBranch = getSelectedCommit() ? getPrimaryBranchForCommit(state.selectedCommitId) : null;
   return selectedBranch ? selectedBranch.id : state.currentBranchId;
+}
+
+function syncBranchSourceMode() {
+  var enabled = !els.branchFromEnabled || els.branchFromEnabled.checked;
+  var sourceField = document.querySelector(".branch-source-field");
+  if (sourceField) sourceField.dataset.enabled = String(enabled);
+  if (els.branchSourceChoices) {
+    els.branchSourceChoices.setAttribute("aria-disabled", String(!enabled));
+  }
 }
 
 function renderBranchSourceChoices(forcedValue) {
@@ -281,6 +334,7 @@ function renderBranchSourceChoices(forcedValue) {
     label.append(input, text);
     els.branchSourceChoices.appendChild(label);
   });
+  syncBranchSourceMode();
 }
 
 function renderMergeRequestControls(forceDefault) {
@@ -342,7 +396,7 @@ function renderMergeRequests() {
       row.appendChild(button);
     } else if (mr.status === "open") {
       var open = document.createElement("small");
-      open.textContent = "Select a commit to show merge action.";
+      open.textContent = "Merge action unavailable.";
       row.appendChild(open);
     } else {
       var merged = document.createElement("small");
@@ -365,7 +419,7 @@ function renderSelectedCommit() {
 
   if (!commit) {
     var empty = document.createElement("small");
-    empty.textContent = "Click a commit dot to show actions.";
+    empty.textContent = "No commit selected.";
     els.selectedCommitDetails.appendChild(empty);
     return;
   }
@@ -397,11 +451,13 @@ function renderActionLog() {
 
   state.actions.slice().reverse().slice(0, 14).forEach(function (action) {
     var item = document.createElement("li");
-    item.textContent = action.summary;
+    var summary = document.createElement("span");
+    summary.className = "action-summary";
+    summary.textContent = action.summary;
     var time = document.createElement("time");
     time.dateTime = action.createdAt;
     time.textContent = formatTime(action.createdAt);
-    item.appendChild(time);
+    item.append(summary, time);
     els.actionLog.appendChild(item);
   });
 }
@@ -428,6 +484,13 @@ function changeRootBranchName(rootName) {
   state.settings.rootBranchName = rootName;
   getBranch("root").name = rootName;
   addAction("root", "Renamed root branch to " + rootName);
+  render();
+}
+
+function changeGraphOrientation(orientation) {
+  if (GRAPH_ORIENTATIONS.indexOf(orientation) < 0 || orientation === state.settings.graphOrientation) return;
+  state.settings.graphOrientation = orientation;
+  addAction("layout", "Changed graph direction to " + orientation);
   render();
 }
 
@@ -478,11 +541,27 @@ function reindexBranchLanes() {
     .sort(function (a, b) {
       if (a.id === "root") return -1;
       if (b.id === "root") return 1;
+      var seqDiff = getBranchCreationSeq(a) - getBranchCreationSeq(b);
+      if (seqDiff) return seqDiff;
       return a.lane - b.lane;
     })
     .forEach(function (branch, index) {
       branch.lane = index;
     });
+}
+
+function getBranchCreationSeq(branch) {
+  var ownCommit = state.commits
+    .filter(function (commit) { return commit.branchId === branch.id; })
+    .sort(function (a, b) { return a.seq - b.seq; })[0];
+  if (ownCommit) return ownCommit.seq;
+
+  var startCommit = getCommit(branch.startCommitId);
+  return startCommit ? startCommit.seq : Number.MAX_SAFE_INTEGER;
+}
+
+function allocateNextBranchLane() {
+  return Math.max.apply(null, state.branches.map(function (item) { return item.lane; })) + 1;
 }
 
 function applyCommitRemoval(removedIds, branchIdsToRemove, summary) {
@@ -632,39 +711,58 @@ function handleCreateBranch(event) {
     return;
   }
 
-  var sourceInput = els.branchSourceChoices.querySelector("input[name='branchSourceId']:checked");
-  var sourceBranch = getBranch(sourceInput ? sourceInput.value : state.currentBranchId);
-  if (!sourceBranch) {
-    setFeedback(els.createBranchFeedback, "Choose a source branch.", "error");
-    return;
+  var shouldBranchFrom = !els.branchFromEnabled || els.branchFromEnabled.checked;
+  var sourceBranch = null;
+  var baseCommit = null;
+  if (shouldBranchFrom) {
+    var sourceInput = els.branchSourceChoices.querySelector("input[name='branchSourceId']:checked");
+    sourceBranch = getBranch(sourceInput ? sourceInput.value : state.currentBranchId);
+    if (!sourceBranch) {
+      setFeedback(els.createBranchFeedback, "Choose a source branch.", "error");
+      return;
+    }
+    baseCommit = getSelectedCommit() || getCommit(sourceBranch.headCommitId);
+    if (!baseCommit) {
+      setFeedback(els.createBranchFeedback, "Choose a valid source commit.", "error");
+      return;
+    }
   }
 
   var firstMessage = els.branchFirstCommitMessage.value.trim() || "create new branch";
-  var baseCommit = getCommit(sourceBranch.headCommitId);
+  var branchLane = allocateNextBranchLane();
   var branch = {
     id: nextId("branch"),
     name: result.value,
     role: "topic",
     headCommitId: null,
-    startCommitId: baseCommit.id,
+    startCommitId: baseCommit ? baseCommit.id : null,
     color: BRANCH_COLORS[state.branches.length % BRANCH_COLORS.length],
-    lane: Math.max.apply(null, state.branches.map(function (item) { return item.lane; })) + 1,
+    lane: branchLane,
   };
   var commit = {
     id: nextId("commit"),
     message: firstMessage,
     branchId: branch.id,
-    parents: [baseCommit.id],
+    parents: baseCommit ? [baseCommit.id] : [],
     createdAt: nowIso(),
     seq: state.counters.commit,
   };
 
   branch.headCommitId = commit.id;
+  if (!branch.startCommitId) branch.startCommitId = commit.id;
   state.branches.push(branch);
   state.commits.push(commit);
+  reindexBranchLanes();
   state.currentBranchId = branch.id;
   state.selectedCommitId = hadSelectedCommit ? commit.id : null;
-  addAction("branch", "Created branch " + branch.name + " from " + sourceBranch.name + " as " + commit.id);
+  if (baseCommit && sourceBranch) {
+    addAction(
+      "branch",
+      "Created branch " + branch.name + " from " + sourceBranch.name + " at " + baseCommit.id + " as " + commit.id
+    );
+  } else {
+    addAction("branch", "Created independent branch " + branch.name + " as " + commit.id);
+  }
   els.branchName.value = "";
   els.branchFirstCommitMessage.value = "create new branch";
   closeModal(els.createBranchModal);
@@ -783,7 +881,10 @@ function mergeRequest(mrId) {
 
 function handleCreateTag(event) {
   event.preventDefault();
-  var target = getSelectedCommit();
+  var existingTag = editingTagId
+    ? state.tags.find(function (tag) { return tag.id === editingTagId; })
+    : null;
+  var target = existingTag ? getCommit(existingTag.commitId) : getSelectedCommit();
   if (!target) {
     setFeedback(els.tagFeedback, "Select a commit first.", "error");
     return;
@@ -797,10 +898,21 @@ function handleCreateTag(event) {
 
   var lower = result.value.toLowerCase();
   var exists = state.tags.some(function (tag) {
-    return tag.name.toLowerCase() === lower;
+    return tag.id !== editingTagId && tag.name.toLowerCase() === lower;
   });
   if (exists) {
     setFeedback(els.tagFeedback, "A tag with that name already exists.", "error");
+    return;
+  }
+
+  if (existingTag) {
+    var oldName = existingTag.name;
+    existingTag.name = result.value;
+    addAction("tag", "Renamed tag " + oldName + " to " + existingTag.name);
+    editingTagId = null;
+    els.tagName.value = "";
+    closeModal(els.tagModal);
+    render();
     return;
   }
 
@@ -818,14 +930,33 @@ function handleCreateTag(event) {
   render();
 }
 
+function deleteTag(tagId) {
+  var tag = state.tags.find(function (item) {
+    return item.id === tagId;
+  });
+  if (!tag) return;
+
+  state.tags = state.tags.filter(function (item) {
+    return item.id !== tagId;
+  });
+  addAction("tag", "Deleted tag " + tag.name);
+  editingTagId = null;
+  els.tagName.value = "";
+  closeModal(els.tagModal);
+  render();
+}
+
 function resetSimulator() {
   var rootName = state.settings.rootBranchName;
+  var graphOrientation = state.settings.graphOrientation;
   state = createInitialState(rootName);
+  state.settings.graphOrientation = graphOrientation;
   clearFeedbacks();
   render();
 }
 
 function openCreateBranchModal() {
+  if (els.branchFromEnabled) els.branchFromEnabled.checked = true;
   renderBranchSourceChoices(getDefaultSourceBranchId());
   els.branchFirstCommitMessage.value = els.branchFirstCommitMessage.value || "create new branch";
   openModal(els.createBranchModal);
@@ -850,13 +981,39 @@ function openMergeRequestModal() {
 function openTagModal() {
   var commit = getSelectedCommit();
   if (!commit) return;
+  editingTagId = null;
+  els.tagModalTitle.textContent = "Create tag";
+  els.tagName.value = "";
+  els.submitTagButton.textContent = "Create tag";
+  els.deleteTagButton.hidden = true;
   els.tagModalContext.textContent = "Tag selected commit " + commit.id + ".";
+  openModal(els.tagModal);
+}
+
+function openEditTagModal(tagId) {
+  var tag = state.tags.find(function (item) {
+    return item.id === tagId;
+  });
+  if (!tag) return;
+  var commit = getCommit(tag.commitId);
+  editingTagId = tag.id;
+  els.tagModalTitle.textContent = "Edit tag";
+  els.tagName.value = tag.name;
+  els.submitTagButton.textContent = "Save tag";
+  els.deleteTagButton.hidden = false;
+  els.tagModalContext.textContent = "Edit tag on commit " + (commit ? commit.id : tag.commitId) + ".";
   openModal(els.tagModal);
 }
 
 document.querySelectorAll("input[name='rootBranchName']").forEach(function (input) {
   input.addEventListener("change", function (event) {
     changeRootBranchName(event.target.value);
+  });
+});
+
+document.querySelectorAll("input[name='graphOrientation']").forEach(function (input) {
+  input.addEventListener("change", function (event) {
+    changeGraphOrientation(event.target.value);
   });
 });
 
@@ -887,12 +1044,18 @@ document.querySelectorAll("[data-close-modal]").forEach(function (button) {
 
 document.querySelectorAll(".modal-backdrop").forEach(function (backdrop) {
   backdrop.addEventListener("click", function (event) {
-    if (event.target === backdrop) closeModal(backdrop);
+    if (event.target !== backdrop) return;
+    event.preventDefault();
+    flashModal(backdrop);
   });
 });
 
 document.addEventListener("keydown", function (event) {
-  if (event.key === "Escape") closeAllModals();
+  if (event.key !== "Escape") return;
+  var modal = getOpenModal();
+  if (!modal) return;
+  event.preventDefault();
+  flashModal(modal);
 });
 
 els.currentBranchSelect.addEventListener("change", function (event) {
@@ -902,12 +1065,23 @@ els.currentBranchSelect.addEventListener("change", function (event) {
 });
 
 els.gitGraph.addEventListener("click", function (event) {
+  var tag = event.target.closest("[data-tag-id]");
+  if (tag) {
+    openEditTagModal(tag.dataset.tagId);
+    return;
+  }
   var target = event.target.closest("[data-commit-id]");
   if (target) selectCommit(target.dataset.commitId);
 });
 
 els.gitGraph.addEventListener("keydown", function (event) {
   if (event.key !== "Enter" && event.key !== " ") return;
+  var tag = event.target.closest("[data-tag-id]");
+  if (tag) {
+    event.preventDefault();
+    openEditTagModal(tag.dataset.tagId);
+    return;
+  }
   var target = event.target.closest("[data-commit-id]");
   if (!target) return;
   event.preventDefault();
@@ -915,9 +1089,13 @@ els.gitGraph.addEventListener("keydown", function (event) {
 });
 
 els.createBranchForm.addEventListener("submit", handleCreateBranch);
+els.branchFromEnabled.addEventListener("change", syncBranchSourceMode);
 els.commitForm.addEventListener("submit", handleCreateCommit);
 els.mergeRequestForm.addEventListener("submit", handleCreateMergeRequest);
 els.tagForm.addEventListener("submit", handleCreateTag);
+els.deleteTagButton.addEventListener("click", function () {
+  if (editingTagId) deleteTag(editingTagId);
+});
 
 els.mergeRequestList.addEventListener("click", function (event) {
   var button = event.target.closest("[data-merge-id]");
@@ -935,5 +1113,7 @@ els.deselectButton.addEventListener("click", function () {
 });
 
 els.resetButton.addEventListener("click", resetSimulator);
+window.addEventListener("resize", scheduleRenderAfterResize);
 
+reindexBranchLanes();
 render();

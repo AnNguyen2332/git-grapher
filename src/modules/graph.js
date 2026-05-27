@@ -9,6 +9,9 @@ export function renderGraph(context) {
   var svg = els.gitGraph;
   svg.replaceChildren();
 
+  var orientation = getOrientation(state);
+  if (els.graphPanel) els.graphPanel.dataset.orientation = orientation;
+
   var orderedCommits = state.commits.slice().sort(function (a, b) {
     return a.seq - b.seq;
   });
@@ -16,8 +19,14 @@ export function renderGraph(context) {
   var commitGap = GRAPH_LAYOUT.commitGap;
   var laneGap = GRAPH_LAYOUT.laneGap;
   var margin = GRAPH_LAYOUT.margin;
-  var width = Math.max(980, margin.left + margin.right + Math.max(0, orderedCommits.length - 1) * commitGap);
-  var height = Math.max(420, margin.top + margin.bottom + Math.max(0, laneCount - 1) * laneGap);
+  var isVertical = orientation === "vertical";
+  var viewport = getGraphViewport(els);
+  var width = isVertical
+    ? Math.max(760, viewport.width, margin.left + margin.right + Math.max(0, laneCount - 1) * laneGap)
+    : Math.max(980, viewport.width, margin.left + margin.right + Math.max(0, orderedCommits.length - 1) * commitGap);
+  var height = isVertical
+    ? Math.max(620, viewport.height, margin.top + margin.bottom + Math.max(0, orderedCommits.length - 1) * commitGap)
+    : Math.max(420, viewport.height, margin.top + margin.bottom + Math.max(0, laneCount - 1) * laneGap);
   var positions = new Map();
 
   svg.setAttribute("viewBox", "0 0 " + width + " " + height);
@@ -27,39 +36,65 @@ export function renderGraph(context) {
   orderedCommits.forEach(function (commit, index) {
     var branch = getBranch(commit.branchId) || getBranch("root");
     positions.set(commit.id, {
-      x: margin.left + index * commitGap,
-      y: margin.top + branch.lane * laneGap,
+      x: isVertical ? margin.left + branch.lane * laneGap : margin.left + index * commitGap,
+      y: isVertical ? margin.top + index * commitGap : margin.top + branch.lane * laneGap,
       branch: branch,
     });
   });
 
-  renderBranchAxis({ state: state, els: els, height: height });
-  renderLaneLines({ state: state, svg: svg, positions: positions, margin: margin, width: width });
-  renderEdges({ state: state, svg: svg, orderedCommits: orderedCommits, positions: positions, getBranch: getBranch, getCommit: getCommit });
+  renderBranchAxis({ state: state, els: els, width: width, height: height, orientation: orientation });
+  renderLaneLines({ state: state, svg: svg, positions: positions, margin: margin, width: width, height: height, orientation: orientation });
+  renderEdges({ state: state, svg: svg, orderedCommits: orderedCommits, positions: positions, getBranch: getBranch, getCommit: getCommit, orientation: orientation });
   renderNodes({ state: state, svg: svg, orderedCommits: orderedCommits, positions: positions });
-  renderTagLabels({ state: state, svg: svg, positions: positions, graphWidth: width });
+  renderTagLabels({ state: state, svg: svg, positions: positions, graphWidth: width, orientation: orientation });
   syncBranchAxisScroll(els);
 }
 
 export function syncBranchAxisScroll(els) {
   if (!els.graphScroll || !els.branchAxis) return;
+  if (els.graphPanel && els.graphPanel.dataset.orientation === "vertical") {
+    els.branchAxis.scrollLeft = els.graphScroll.scrollLeft;
+    return;
+  }
   els.branchAxis.scrollTop = els.graphScroll.scrollTop;
+}
+
+function getOrientation(state) {
+  return state.settings && state.settings.graphOrientation === "vertical" ? "vertical" : "horizontal";
+}
+
+function getGraphViewport(els) {
+  if (!els.graphScroll) return { width: 0, height: 0 };
+  return {
+    width: els.graphScroll.clientWidth || 0,
+    height: els.graphScroll.clientHeight || 0,
+  };
 }
 
 function renderBranchAxis(context) {
   var state = context.state;
   var els = context.els;
+  var width = context.width;
   var height = context.height;
+  var orientation = context.orientation;
   els.branchAxis.replaceChildren();
+  els.branchAxis.dataset.orientation = orientation;
 
   var inner = document.createElement("div");
   inner.className = "branch-axis-inner";
-  inner.style.height = height + "px";
+  inner.style.height = orientation === "vertical" ? GRAPH_LAYOUT.branchAxisWidth + "px" : height + "px";
+  inner.style.width = orientation === "vertical" ? width + "px" : "100%";
 
   state.branches.forEach(function (branch) {
     var label = document.createElement("div");
     label.className = "branch-axis-label";
-    label.style.top = (GRAPH_LAYOUT.margin.top + branch.lane * GRAPH_LAYOUT.laneGap - 15) + "px";
+    if (orientation === "vertical") {
+      label.style.left = (GRAPH_LAYOUT.margin.left + branch.lane * GRAPH_LAYOUT.laneGap - 48) + "px";
+      label.style.top = "28px";
+      label.style.width = "96px";
+    } else {
+      label.style.top = (GRAPH_LAYOUT.margin.top + branch.lane * GRAPH_LAYOUT.laneGap - 15) + "px";
+    }
 
     var dot = document.createElement("span");
     dot.className = "branch-dot";
@@ -81,11 +116,28 @@ function renderLaneLines(context) {
   var positions = context.positions;
   var margin = context.margin;
   var width = context.width;
+  var height = context.height;
+  var orientation = context.orientation;
 
   state.branches.forEach(function (branch) {
     var start = positions.get(branch.startCommitId) || positions.get(branch.headCommitId);
     var head = positions.get(branch.headCommitId);
+    var x = margin.left + branch.lane * GRAPH_LAYOUT.laneGap;
     var y = margin.top + branch.lane * GRAPH_LAYOUT.laneGap;
+
+    if (orientation === "vertical") {
+      var y1 = start ? start.y : margin.top;
+      var y2 = head ? Math.max(head.y, y1 + 38) : height - margin.bottom;
+      svg.appendChild(svgEl("line", {
+        class: "svg-lane",
+        x1: String(x),
+        y1: String(y1),
+        x2: String(x),
+        y2: String(y2),
+      }));
+      return;
+    }
+
     var x1 = start ? start.x : margin.left;
     var x2 = head ? Math.max(head.x, x1 + 38) : width - margin.right;
 
@@ -105,6 +157,7 @@ function renderEdges(context) {
   var positions = context.positions;
   var getBranch = context.getBranch;
   var getCommit = context.getCommit;
+  var orientation = context.orientation;
 
   orderedCommits.forEach(function (commit) {
     var child = positions.get(commit.id);
@@ -117,10 +170,19 @@ function renderEdges(context) {
 
       var colorBranch = parentIndex === 0 ? child.branch : getBranch(parentCommit.branchId) || parent.branch;
       var dx = Math.max(60, Math.abs(child.x - parent.x) * 0.45);
-      var path = "M " + parent.x + " " + parent.y +
-        " C " + (parent.x + dx) + " " + parent.y +
-        ", " + (child.x - dx) + " " + child.y +
-        ", " + child.x + " " + child.y;
+      var dy = Math.max(60, Math.abs(child.y - parent.y) * 0.45);
+      var isBranchStartEdge = parentIndex === 0 && parentCommit.branchId !== commit.branchId;
+      var path = isBranchStartEdge
+        ? branchStartPath(parent, child, orientation)
+        : orientation === "vertical"
+        ? "M " + parent.x + " " + parent.y +
+          " C " + parent.x + " " + (parent.y + dy) +
+          ", " + child.x + " " + (child.y - dy) +
+          ", " + child.x + " " + child.y
+        : "M " + parent.x + " " + parent.y +
+          " C " + (parent.x + dx) + " " + parent.y +
+          ", " + (child.x - dx) + " " + child.y +
+          ", " + child.x + " " + child.y;
 
       svg.appendChild(svgEl("path", {
         class: parentIndex > 0 ? "svg-edge merge-edge" : "svg-edge",
@@ -130,6 +192,42 @@ function renderEdges(context) {
       }));
     });
   });
+}
+
+function branchStartPath(parent, child, orientation) {
+  if (orientation === "vertical") {
+    var spanY = child.y - parent.y;
+    var directionY = spanY >= 0 ? 1 : -1;
+    var bendY = Math.min(
+      Math.abs(spanY) - 40,
+      Math.max(96, Math.min(300, Math.abs(child.x - parent.x) * 0.62 + 96))
+    );
+    if (bendY <= 0) bendY = Math.abs(spanY) / 2;
+    var turnY = parent.y + directionY * bendY;
+    var controlY = Math.max(64, Math.min(150, bendY * 0.58));
+
+    return "M " + parent.x + " " + parent.y +
+      " C " + parent.x + " " + (parent.y + directionY * controlY) +
+      ", " + child.x + " " + (turnY - directionY * controlY) +
+      ", " + child.x + " " + turnY +
+      " L " + child.x + " " + child.y;
+  }
+
+  var spanX = child.x - parent.x;
+  var directionX = spanX >= 0 ? 1 : -1;
+  var curveRunX = Math.min(
+    Math.abs(spanX) - 40,
+    Math.max(96, Math.min(300, Math.abs(child.y - parent.y) * 0.62 + 96))
+  );
+  if (curveRunX <= 0) curveRunX = Math.abs(spanX) / 2;
+  var turnX = parent.x + directionX * curveRunX;
+  var controlX = Math.max(64, Math.min(150, curveRunX * 0.58));
+
+  return "M " + parent.x + " " + parent.y +
+    " C " + (parent.x + directionX * controlX) + " " + parent.y +
+    ", " + (turnX - directionX * controlX) + " " + child.y +
+    ", " + turnX + " " + child.y +
+    " L " + child.x + " " + child.y;
 }
 
 function renderNodes(context) {
@@ -149,13 +247,23 @@ function renderNodes(context) {
       "aria-label": commit.id + " " + commit.message,
     });
 
-    var circleClass = commit.id === state.selectedCommitId ? "svg-node is-selected" : "svg-node";
+    if (commit.id === state.selectedCommitId) {
+      group.appendChild(svgEl("circle", {
+        class: "svg-selected-ring",
+        cx: String(pos.x),
+        cy: String(pos.y),
+        r: "19",
+      }));
+    }
+
+    var circleClass = "svg-node";
     group.appendChild(svgEl("circle", {
       class: circleClass,
       cx: String(pos.x),
       cy: String(pos.y),
-      r: "12",
-      fill: pos.branch.color,
+      r: "10",
+      fill: "#ffffff",
+      stroke: pos.branch.color,
     }));
 
     var idText = svgEl("text", {
@@ -185,6 +293,7 @@ function renderTagLabels(context) {
   var svg = context.svg;
   var positions = context.positions;
   var graphWidth = context.graphWidth;
+  var orientation = context.orientation;
   var tagCounts = {};
 
   state.tags.forEach(function (tag) {
@@ -205,31 +314,51 @@ function renderTagLabels(context) {
       belowNode = true;
     }
 
-    svg.appendChild(svgEl("line", {
+    if (orientation === "vertical") {
+      x = pos.x + 24 + offset;
+      if (x + width > graphWidth - 12) x = Math.max(12, pos.x - width - 24 - offset);
+      y = Math.max(28, pos.y - 12);
+      belowNode = x < pos.x;
+    }
+
+    var rectY = y - 17;
+    var group = svgEl("g", {
+      class: "svg-tag",
+      role: "button",
+      tabindex: "0",
+      "data-tag-id": tag.id,
+      "aria-label": "Edit tag " + tag.name,
+    });
+
+    group.appendChild(svgEl("line", {
       class: "svg-tag-line",
-      x1: String(pos.x + 8),
-      y1: String(pos.y + (belowNode ? 9 : -9)),
+      x1: String(pos.x + (orientation === "vertical" ? (belowNode ? -8 : 8) : 8)),
+      y1: String(pos.y + (orientation === "vertical" ? 0 : (belowNode ? 9 : -9))),
       x2: String(x),
-      y2: String(y - 6),
+      y2: String(rectY + 11.5),
     }));
 
-    svg.appendChild(svgEl("rect", {
+    group.appendChild(svgEl("rect", {
+      class: "svg-tag-box",
       x: String(x),
-      y: String(y - 17),
+      y: String(rectY),
       width: String(width),
       height: "23",
-      rx: "6",
-      fill: "#fff7ed",
-      stroke: "#f97316",
+      rx: "7",
+      fill: "#ffffff",
+      stroke: "#fb923c",
       "stroke-width": "1.5",
     }));
 
     var text = svgEl("text", {
       class: "svg-tag-label",
-      x: String(x + 10),
-      y: String(y),
+      x: String(x + width / 2),
+      y: String(rectY + 11.5),
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
     });
     text.textContent = label;
-    svg.appendChild(text);
+    group.appendChild(text);
+    svg.appendChild(group);
   });
 }
