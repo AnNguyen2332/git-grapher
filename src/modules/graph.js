@@ -10,6 +10,8 @@ export function renderGraph(context) {
   svg.replaceChildren();
 
   var orientation = getOrientation(state);
+  if (els.graphPanel) els.graphPanel.dataset.orientation = orientation;
+
   var orderedCommits = state.commits.slice().sort(function (a, b) {
     return a.seq - b.seq;
   });
@@ -18,15 +20,15 @@ export function renderGraph(context) {
   var laneGap = GRAPH_LAYOUT.laneGap;
   var margin = GRAPH_LAYOUT.margin;
   var isVertical = orientation === "vertical";
+  var viewport = getGraphViewport(els);
   var width = isVertical
-    ? Math.max(760, margin.left + margin.right + Math.max(0, laneCount - 1) * laneGap)
-    : Math.max(980, margin.left + margin.right + Math.max(0, orderedCommits.length - 1) * commitGap);
+    ? Math.max(760, viewport.width, margin.left + margin.right + Math.max(0, laneCount - 1) * laneGap)
+    : Math.max(980, viewport.width, margin.left + margin.right + Math.max(0, orderedCommits.length - 1) * commitGap);
   var height = isVertical
-    ? Math.max(620, margin.top + margin.bottom + Math.max(0, orderedCommits.length - 1) * commitGap)
-    : Math.max(420, margin.top + margin.bottom + Math.max(0, laneCount - 1) * laneGap);
+    ? Math.max(620, viewport.height, margin.top + margin.bottom + Math.max(0, orderedCommits.length - 1) * commitGap)
+    : Math.max(420, viewport.height, margin.top + margin.bottom + Math.max(0, laneCount - 1) * laneGap);
   var positions = new Map();
 
-  if (els.graphPanel) els.graphPanel.dataset.orientation = orientation;
   svg.setAttribute("viewBox", "0 0 " + width + " " + height);
   svg.setAttribute("width", String(width));
   svg.setAttribute("height", String(height));
@@ -59,6 +61,14 @@ export function syncBranchAxisScroll(els) {
 
 function getOrientation(state) {
   return state.settings && state.settings.graphOrientation === "vertical" ? "vertical" : "horizontal";
+}
+
+function getGraphViewport(els) {
+  if (!els.graphScroll) return { width: 0, height: 0 };
+  return {
+    width: els.graphScroll.clientWidth || 0,
+    height: els.graphScroll.clientHeight || 0,
+  };
 }
 
 function renderBranchAxis(context) {

@@ -15,6 +15,7 @@ import { exportGraphPng } from "./modules/exportGraph.js";
 var state = loadState();
 var pendingDelete = null;
 var editingTagId = null;
+var resizeRenderTimer = null;
 
 var els = {
   stateSummary: document.getElementById("stateSummary"),
@@ -208,6 +209,11 @@ function render() {
   renderSelectedCommit();
   renderActionLog();
   renderGraph({ state: state, els: els, getBranch: getBranch, getCommit: getCommit });
+}
+
+function scheduleRenderAfterResize() {
+  window.clearTimeout(resizeRenderTimer);
+  resizeRenderTimer = window.setTimeout(render, 120);
 }
 
 function renderPanelState() {
@@ -1107,6 +1113,7 @@ els.deselectButton.addEventListener("click", function () {
 });
 
 els.resetButton.addEventListener("click", resetSimulator);
+window.addEventListener("resize", scheduleRenderAfterResize);
 
 reindexBranchLanes();
 render();
