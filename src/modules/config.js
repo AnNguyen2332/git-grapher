@@ -24,3 +24,9 @@ export const GRAPH_LAYOUT = {
 };
 
 export const EXPORT_FILENAME = "git-graph.png";
+
+export const PROJECT_FILE_FORMAT = "git-grapher-project";
+
+export const PROJECT_FILE_VERSION = 1;
+
+export const PROJECT_FILE_FILENAME = "git-grapher-project.json";
