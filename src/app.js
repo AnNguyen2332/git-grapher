@@ -11,6 +11,7 @@ import {
 import { createChip, createTextChip, formatTime, replaceOptions, setFeedback } from "./modules/ui.js";
 import { renderGraph, syncBranchAxisScroll } from "./modules/graph.js";
 import { exportGraphPng } from "./modules/exportGraph.js";
+import { downloadProjectFile, parseProjectFile } from "./modules/projectFile.js";
 
 var state = loadState();
 var pendingDelete = null;
@@ -22,6 +23,10 @@ var els = {
   graphPanel: document.querySelector(".graph-panel"),
   resetButton: document.getElementById("resetButton"),
   exportGraphButton: document.getElementById("exportGraphButton"),
+  exportProjectButton: document.getElementById("exportProjectButton"),
+  importProjectButton: document.getElementById("importProjectButton"),
+  projectFileInput: document.getElementById("projectFileInput"),
+  projectFileFeedback: document.getElementById("projectFileFeedback"),
   currentBranchSelect: document.getElementById("currentBranchSelect"),
   branchLegend: document.getElementById("branchLegend"),
   branchList: document.getElementById("branchList"),
@@ -135,6 +140,10 @@ function clearFeedbacks() {
   ].forEach(function (element) {
     setFeedback(element, "", null);
   });
+}
+
+function setProjectFileFeedback(message, tone) {
+  setFeedback(els.projectFileFeedback, message, tone);
 }
 
 function openModal(modal) {
@@ -952,7 +961,49 @@ function resetSimulator() {
   state = createInitialState(rootName);
   state.settings.graphOrientation = graphOrientation;
   clearFeedbacks();
+  setProjectFileFeedback("", null);
   render();
+}
+
+function handleExportProject() {
+  try {
+    downloadProjectFile(state);
+    setProjectFileFeedback("Project JSON exported.", "success");
+  } catch (error) {
+    setProjectFileFeedback("Could not export project JSON.", "error");
+  }
+}
+
+function openProjectImportPicker() {
+  setProjectFileFeedback("", null);
+  els.projectFileInput.click();
+}
+
+function handleProjectFileSelected(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  file.text()
+    .then(function (text) {
+      var result = parseProjectFile(text);
+      if (!result.ok) {
+        setProjectFileFeedback(result.message, "error");
+        return;
+      }
+
+      state = result.state;
+      pendingDelete = null;
+      clearFeedbacks();
+      closeAllModals();
+      render();
+      setProjectFileFeedback("Project JSON imported.", "success");
+    })
+    .catch(function () {
+      setProjectFileFeedback("Could not read that project file.", "error");
+    })
+    .finally(function () {
+      event.target.value = "";
+    });
 }
 
 function openCreateBranchModal() {
@@ -1026,6 +1077,9 @@ els.confirmDeleteButton.addEventListener("click", confirmDelete);
 els.exportGraphButton.addEventListener("click", function () {
   exportGraphPng({ state: state, els: els, getBranch: getBranch });
 });
+els.exportProjectButton.addEventListener("click", handleExportProject);
+els.importProjectButton.addEventListener("click", openProjectImportPicker);
+els.projectFileInput.addEventListener("change", handleProjectFileSelected);
 els.graphScroll.addEventListener("scroll", function () {
   syncBranchAxisScroll(els);
 });

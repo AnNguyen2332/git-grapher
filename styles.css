@@ -130,6 +130,26 @@ button {
   gap: 8px;
 }
 
+.file-input {
+  display: none;
+}
+
+.topbar-feedback {
+  max-width: 220px;
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.topbar-feedback.is-error {
+  color: var(--red);
+}
+
+.topbar-feedback.is-success {
+  color: var(--green);
+}
+
 .segmented {
   display: inline-flex;
   align-items: center;
@@ -1032,6 +1052,10 @@ fieldset.field {
   .app-shell {
     gap: 12px;
     padding: 12px;
+  }
+
+  .topbar-feedback {
+    max-width: none;
   }
 
   .topbar {

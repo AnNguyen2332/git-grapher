@@ -1,5 +1,7 @@
 import { BRANCH_COLORS, GRAPH_ORIENTATIONS, PANEL_IDS, ROOT_NAMES, STORAGE_KEY } from "./config.js";
 
+var HISTORY_STATE_KEY = STORAGE_KEY + "-history-state";
+
 export function nowIso() {
   return new Date().toISOString();
 }
@@ -62,16 +64,73 @@ export function createInitialState(rootName) {
 
 export function loadState() {
   try {
-    var raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createInitialState("main");
-    return normalizeState(JSON.parse(raw));
+    if (isStateRestoreNavigation()) {
+      var historyState = getHistorySimulatorState();
+      if (historyState) return normalizeState(cloneJson(historyState));
+      var raw = window.sessionStorage.getItem(STORAGE_KEY);
+      if (raw) return normalizeState(JSON.parse(raw));
+    }
+    return createInitialState("main");
   } catch (error) {
     return createInitialState("main");
   }
 }
 
 export function saveState(state) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // Storage can be unavailable in restricted browser contexts; keep the in-memory state usable.
+  }
+
+  try {
+    var currentHistoryState = getHistoryStateObject();
+    currentHistoryState[HISTORY_STATE_KEY] = cloneJson(state);
+    window.history.replaceState(currentHistoryState, document.title);
+  } catch (error) {
+    // History state can be unavailable in unusual embeds; session state remains best-effort.
+  }
+}
+
+function getHistorySimulatorState() {
+  var currentHistoryState = getHistoryStateObject();
+  return currentHistoryState[HISTORY_STATE_KEY] || null;
+}
+
+function getHistoryStateObject() {
+  var currentHistoryState = window.history && window.history.state;
+  if (!currentHistoryState || typeof currentHistoryState !== "object" || Array.isArray(currentHistoryState)) {
+    return {};
+  }
+
+  return Object.assign({}, currentHistoryState);
+}
+
+function isStateRestoreNavigation() {
+  var type = getNavigationType();
+  if (type) return type === "reload" || type === "back_forward";
+
+  return !!(
+    window.performance &&
+    window.performance.navigation &&
+    (
+      window.performance.navigation.type === 1 ||
+      window.performance.navigation.type === 2
+    )
+  );
+}
+
+function getNavigationType() {
+  if (window.performance && typeof window.performance.getEntriesByType === "function") {
+    var entries = window.performance.getEntriesByType("navigation");
+    if (entries.length && entries[0].type) return entries[0].type;
+  }
+
+  return null;
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 export function normalizeState(nextState) {
