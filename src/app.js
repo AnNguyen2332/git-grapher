@@ -12,6 +12,20 @@ import { createChip, createTextChip, formatTime, replaceOptions, setFeedback } f
 import { renderGraph, syncBranchAxisScroll } from "./modules/graph.js";
 import { exportGraphPng } from "./modules/exportGraph.js";
 import { downloadProjectFile, parseProjectFile } from "./modules/projectFile.js";
+import { ALL_TEMPLATES, createTemplateState, getTemplateById } from "./modules/templates.js";
+import { trackEvent, trackRouteOnce } from "./modules/analytics.js";
+import {
+  CICD_MAIN_TABS,
+  CICD_SUB_TABS,
+  formatTrigger,
+  getAssignedPipelines,
+  getCicdPresetConfig,
+  getMergeDotId,
+  getPipelineAssignmentForTarget,
+  hasStageDependencyCycle,
+  normalizeTriggers,
+  uniqueStrings,
+} from "./modules/cicd.js";
 
 var state = loadState();
 var pendingDelete = null;
@@ -19,16 +33,24 @@ var editingTagId = null;
 var resizeRenderTimer = null;
 
 var els = {
+  landingPage: document.getElementById("landingPage"),
+  appShell: document.getElementById("appShell"),
   stateSummary: document.getElementById("stateSummary"),
   graphPanel: document.querySelector(".graph-panel"),
   resetButton: document.getElementById("resetButton"),
   exportGraphButton: document.getElementById("exportGraphButton"),
   exportProjectButton: document.getElementById("exportProjectButton"),
   importProjectButton: document.getElementById("importProjectButton"),
+  openTemplateGalleryButton: document.getElementById("openTemplateGalleryButton"),
+  feedbackButton: document.getElementById("feedbackButton"),
   projectFileInput: document.getElementById("projectFileInput"),
   projectFileFeedback: document.getElementById("projectFileFeedback"),
   currentBranchSelect: document.getElementById("currentBranchSelect"),
   branchLegend: document.getElementById("branchLegend"),
+  graphZoomOutButton: document.getElementById("graphZoomOutButton"),
+  graphZoomInButton: document.getElementById("graphZoomInButton"),
+  graphZoomResetButton: document.getElementById("graphZoomResetButton"),
+  graphZoomLabel: document.getElementById("graphZoomLabel"),
   branchList: document.getElementById("branchList"),
   mergeRequestForm: document.getElementById("mergeRequestForm"),
   mrSource: document.getElementById("mrSource"),
@@ -44,6 +66,9 @@ var els = {
   createBranchModal: document.getElementById("createBranchModal"),
   selectedCommitDetails: document.getElementById("selectedCommitDetails"),
   selectedActions: document.getElementById("selectedActions"),
+  editorEmptyState: document.getElementById("editorEmptyState"),
+  nextActionText: document.getElementById("nextActionText"),
+  startBlankButton: document.getElementById("startBlankButton"),
   deselectButton: document.getElementById("deselectButton"),
   createBranchForm: document.getElementById("createBranchForm"),
   branchSourceChoices: document.getElementById("branchSourceChoices"),
@@ -74,7 +99,95 @@ var els = {
   deleteModalMessage: document.getElementById("deleteModalMessage"),
   deleteFeedback: document.getElementById("deleteFeedback"),
   confirmDeleteButton: document.getElementById("confirmDeleteButton"),
+  templateGalleryModal: document.getElementById("templateGalleryModal"),
+  templateGalleryList: document.getElementById("templateGalleryList"),
+  exportModal: document.getElementById("exportModal"),
+  proModal: document.getElementById("proModal"),
+  proModalContext: document.getElementById("proModalContext"),
+  waitlistModal: document.getElementById("waitlistModal"),
+  waitlistForm: document.getElementById("waitlistForm"),
+  waitlistFeedback: document.getElementById("waitlistFeedback"),
+  feedbackModal: document.getElementById("feedbackModal"),
+  feedbackForm: document.getElementById("feedbackForm"),
+  feedbackFormFeedback: document.getElementById("feedbackFormFeedback"),
+  loadCicdPresetButton: document.getElementById("loadCicdPresetButton"),
+  cicdJobForm: document.getElementById("cicdJobForm"),
+  cicdJobId: document.getElementById("cicdJobId"),
+  cicdJobName: document.getElementById("cicdJobName"),
+  cicdJobDescription: document.getElementById("cicdJobDescription"),
+  cicdJobFeedback: document.getElementById("cicdJobFeedback"),
+  cicdJobCancel: document.getElementById("cicdJobCancel"),
+  cicdJobList: document.getElementById("cicdJobList"),
+  cicdStageForm: document.getElementById("cicdStageForm"),
+  cicdStageId: document.getElementById("cicdStageId"),
+  cicdStageName: document.getElementById("cicdStageName"),
+  cicdStageDescription: document.getElementById("cicdStageDescription"),
+  cicdStageJobs: document.getElementById("cicdStageJobs"),
+  cicdStageDependencies: document.getElementById("cicdStageDependencies"),
+  cicdStageSkip: document.getElementById("cicdStageSkip"),
+  cicdStageFeedback: document.getElementById("cicdStageFeedback"),
+  cicdStageCancel: document.getElementById("cicdStageCancel"),
+  cicdStageList: document.getElementById("cicdStageList"),
+  cicdPipelineForm: document.getElementById("cicdPipelineForm"),
+  cicdPipelineId: document.getElementById("cicdPipelineId"),
+  cicdPipelineName: document.getElementById("cicdPipelineName"),
+  cicdPipelineDescription: document.getElementById("cicdPipelineDescription"),
+  cicdPipelineStages: document.getElementById("cicdPipelineStages"),
+  cicdTriggerMergeRequest: document.getElementById("cicdTriggerMergeRequest"),
+  cicdTriggerScheduled: document.getElementById("cicdTriggerScheduled"),
+  cicdScheduleMode: document.getElementById("cicdScheduleMode"),
+  cicdScheduleTime: document.getElementById("cicdScheduleTime"),
+  cicdScheduleDayOfWeek: document.getElementById("cicdScheduleDayOfWeek"),
+  cicdScheduleDayOfMonth: document.getElementById("cicdScheduleDayOfMonth"),
+  cicdScheduleCron: document.getElementById("cicdScheduleCron"),
+  cicdPipelineFeedback: document.getElementById("cicdPipelineFeedback"),
+  cicdPipelineCancel: document.getElementById("cicdPipelineCancel"),
+  cicdPipelineList: document.getElementById("cicdPipelineList"),
+  cicdAssignmentForm: document.getElementById("cicdAssignmentForm"),
+  cicdAssignmentId: document.getElementById("cicdAssignmentId"),
+  cicdAssignmentTargetType: document.getElementById("cicdAssignmentTargetType"),
+  cicdAssignmentTarget: document.getElementById("cicdAssignmentTarget"),
+  cicdAssignmentPipelines: document.getElementById("cicdAssignmentPipelines"),
+  cicdAssignmentFeedback: document.getElementById("cicdAssignmentFeedback"),
+  cicdAssignmentCancel: document.getElementById("cicdAssignmentCancel"),
+  cicdAssignmentList: document.getElementById("cicdAssignmentList"),
 };
+
+function isAppRoute() {
+  return window.location.pathname.replace(/\/+$/, "") === "/app";
+}
+
+function navigateToApp() {
+  try {
+    if (!isAppRoute()) window.history.pushState({}, "", "/app");
+  } catch (error) {
+    // Route changes are progressive enhancement; the editor can still be shown.
+  }
+  renderRoute();
+}
+
+function navigateToLanding() {
+  try {
+    if (isAppRoute()) window.history.pushState({}, "", "/");
+  } catch (error) {
+    // Route changes are progressive enhancement; the landing page can still be shown.
+  }
+  renderRoute();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderRoute() {
+  var appRoute = isAppRoute();
+  if (els.landingPage) els.landingPage.hidden = appRoute;
+  if (els.appShell) els.appShell.hidden = !appRoute;
+
+  if (appRoute) {
+    trackRouteOnce("app_opened");
+    return;
+  }
+
+  trackRouteOnce("landing_view");
+}
 
 function nextId(kind) {
   return allocateId(state, kind);
@@ -137,6 +250,12 @@ function clearFeedbacks() {
     els.mergeRequestFeedback,
     els.tagFeedback,
     els.deleteFeedback,
+    els.waitlistFeedback,
+    els.feedbackFormFeedback,
+    els.cicdJobFeedback,
+    els.cicdStageFeedback,
+    els.cicdPipelineFeedback,
+    els.cicdAssignmentFeedback,
   ].forEach(function (element) {
     setFeedback(element, "", null);
   });
@@ -152,7 +271,7 @@ function openModal(modal) {
   modal.hidden = false;
 
   window.setTimeout(function () {
-    var firstField = modal.querySelector("input:not([type='radio']), select");
+    var firstField = modal.querySelector("input:not([type='radio']):not([type='hidden']):not([name='bot-field']), textarea, select");
     if (firstField) firstField.focus();
   }, 0);
 }
@@ -171,6 +290,11 @@ function closeAllModals() {
     els.mergeRequestModal,
     els.tagModal,
     els.deleteModal,
+    els.templateGalleryModal,
+    els.exportModal,
+    els.proModal,
+    els.waitlistModal,
+    els.feedbackModal,
   ].forEach(closeModal);
 }
 
@@ -181,6 +305,11 @@ function getOpenModal() {
     els.mergeRequestModal,
     els.tagModal,
     els.deleteModal,
+    els.templateGalleryModal,
+    els.exportModal,
+    els.proModal,
+    els.waitlistModal,
+    els.feedbackModal,
   ].find(function (modal) {
     return modal && !modal.hidden;
   });
@@ -210,6 +339,7 @@ function render() {
   renderPanelState();
   renderRootSwitch();
   renderGraphOrientationSwitch();
+  renderGraphZoomControls();
   renderSummary();
   renderBranches();
   renderBranchSourceChoices();
@@ -217,6 +347,10 @@ function render() {
   renderMergeRequests();
   renderSelectedCommit();
   renderActionLog();
+  renderOnboarding();
+  renderTemplateGallery();
+  renderWorkspaceTabs();
+  renderCicd();
   renderGraph({ state: state, els: els, getBranch: getBranch, getCommit: getCommit });
 }
 
@@ -257,6 +391,13 @@ function renderGraphOrientationSwitch() {
   });
 }
 
+function renderGraphZoomControls() {
+  var zoom = getGraphZoom();
+  if (els.graphZoomLabel) els.graphZoomLabel.textContent = Math.round(zoom * 100) + "%";
+  if (els.graphZoomOutButton) els.graphZoomOutButton.disabled = zoom <= 0.65;
+  if (els.graphZoomInButton) els.graphZoomInButton.disabled = zoom >= 1.8;
+}
+
 function renderSummary() {
   var openMrs = state.mergeRequests.filter(function (mr) {
     return mr.status === "open";
@@ -280,7 +421,11 @@ function renderBranches() {
     var dot = document.createElement("span");
     dot.className = "legend-dot";
     dot.style.backgroundColor = branch.color;
-    legend.append(dot, document.createTextNode(branch.name));
+    var label = document.createElement("span");
+    label.className = "legend-label";
+    label.textContent = branch.name;
+    label.title = branch.name;
+    legend.append(dot, label);
     els.branchLegend.appendChild(legend);
 
     var row = document.createElement("div");
@@ -471,6 +616,761 @@ function renderActionLog() {
   });
 }
 
+function renderOnboarding() {
+  if (!els.editorEmptyState || !els.nextActionText) return;
+  els.editorEmptyState.hidden = !shouldShowOnboarding();
+  els.nextActionText.textContent = getNextActionText();
+}
+
+function shouldShowOnboarding() {
+  return !state.ui.onboardingDismissed &&
+    state.branches.length === 1 &&
+    state.commits.length === 1 &&
+    state.mergeRequests.length === 0 &&
+    state.tags.length === 0;
+}
+
+function getNextActionText() {
+  if (state.branches.length === 1) {
+    return "Next: Try creating a feature branch.";
+  }
+
+  var branchNeedingCommit = state.branches.find(function (branch) {
+    if (branch.id === "root") return false;
+    var ownCommitCount = state.commits.filter(function (commit) {
+      return commit.branchId === branch.id;
+    }).length;
+    return ownCommitCount <= 1;
+  });
+  if (branchNeedingCommit) {
+    return "Next: Add a commit on " + branchNeedingCommit.name + ".";
+  }
+
+  var hasOpenMr = state.mergeRequests.some(function (mr) {
+    return mr.status === "open";
+  });
+  if (state.branches.length > 1 && !hasOpenMr && state.mergeRequests.length === 0) {
+    return "Next: Create a merge request.";
+  }
+
+  if (state.actions.length >= 5 || state.mergeRequests.some(function (mr) { return mr.status === "merged"; })) {
+    return "Next: Export the graph.";
+  }
+
+  return "Next: Keep shaping the workflow.";
+}
+
+function renderTemplateGallery() {
+  if (!els.templateGalleryList) return;
+  els.templateGalleryList.replaceChildren();
+  ALL_TEMPLATES.forEach(function (template) {
+    els.templateGalleryList.appendChild(createTemplateCard(template));
+  });
+}
+
+function createTemplateCard(template) {
+  var card = document.createElement("article");
+  card.className = "template-card";
+
+  var header = document.createElement("header");
+  var titleWrap = document.createElement("div");
+  var title = document.createElement("h3");
+  title.textContent = template.name;
+  var category = document.createElement("span");
+  category.className = "plan-chip";
+  category.textContent = template.isPremium ? "Pro" : template.category;
+  titleWrap.append(title);
+  header.append(titleWrap, category);
+
+  var description = document.createElement("p");
+  description.textContent = template.description;
+
+  var tags = document.createElement("div");
+  tags.className = "template-tags";
+  template.tags.forEach(function (tagName) {
+    var tag = document.createElement("span");
+    tag.className = "template-tag";
+    tag.textContent = tagName;
+    tags.appendChild(tag);
+  });
+
+  var button = document.createElement("button");
+  button.className = template.isPremium ? "button button-primary" : "button button-secondary";
+  button.type = "button";
+  button.dataset.templateId = template.id;
+  button.dataset.templateSource = "gallery";
+  button.textContent = template.isPremium ? "Preview Pro" : "Open this scenario";
+
+  card.append(header, description, tags, button);
+  return card;
+}
+
+function renderWorkspaceTabs() {
+  document.querySelectorAll("[data-main-tab]").forEach(function (button) {
+    button.setAttribute("aria-selected", String(button.dataset.mainTab === state.ui.activeMainTab));
+  });
+  document.querySelectorAll("[data-main-tab-panel]").forEach(function (panel) {
+    panel.hidden = panel.dataset.mainTabPanel !== state.ui.activeMainTab;
+  });
+}
+
+function renderCicd() {
+  if (!els.cicdJobList) return;
+  document.querySelectorAll("[data-cicd-tab]").forEach(function (button) {
+    button.setAttribute("aria-selected", String(button.dataset.cicdTab === state.ui.activeCicdTab));
+  });
+  document.querySelectorAll("[data-cicd-panel]").forEach(function (panel) {
+    panel.hidden = panel.dataset.cicdPanel !== state.ui.activeCicdTab;
+  });
+
+  renderCicdChoices();
+  renderCicdJobs();
+  renderCicdStages();
+  renderCicdPipelines();
+  renderCicdAssignments();
+}
+
+function renderCicdChoices() {
+  renderCheckboxChoices(els.cicdStageJobs, state.cicd.jobs, "stageJobIds", getCheckedValues(els.cicdStageJobs), "No jobs defined yet.");
+  renderCheckboxChoices(
+    els.cicdStageDependencies,
+    state.cicd.stages.filter(function (stage) { return stage.id !== els.cicdStageId.value; }),
+    "stageDependencyIds",
+    getCheckedValues(els.cicdStageDependencies),
+    "No other stages defined yet."
+  );
+  renderCheckboxChoices(els.cicdPipelineStages, state.cicd.stages, "pipelineStageIds", getCheckedValues(els.cicdPipelineStages), "No stages defined yet.");
+  renderAssignmentTargetOptions();
+  renderCheckboxChoices(els.cicdAssignmentPipelines, state.cicd.pipelines, "assignmentPipelineIds", getCheckedValues(els.cicdAssignmentPipelines), "No pipelines defined yet.");
+}
+
+function renderCheckboxChoices(container, items, name, checkedValues, emptyText) {
+  if (!container) return;
+  var checked = new Set(checkedValues || []);
+  container.replaceChildren();
+  if (!items.length) {
+    var empty = document.createElement("small");
+    empty.className = "empty-note";
+    empty.textContent = emptyText;
+    container.appendChild(empty);
+    return;
+  }
+  items.forEach(function (item) {
+    var label = document.createElement("label");
+    var input = document.createElement("input");
+    var text = document.createElement("span");
+    input.type = "checkbox";
+    input.name = name;
+    input.value = item.id;
+    input.checked = checked.has(item.id);
+    text.textContent = item.name;
+    label.append(input, text);
+    container.appendChild(label);
+  });
+}
+
+function getCheckedValues(container) {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll("input[type='checkbox']:checked")).map(function (input) {
+    return input.value;
+  });
+}
+
+function renderCicdJobs() {
+  els.cicdJobList.replaceChildren();
+  if (!state.cicd.jobs.length) {
+    appendEmpty(els.cicdJobList, "No jobs defined yet. Create jobs such as build, qac, polyspace, or send_mail.");
+    return;
+  }
+  state.cicd.jobs.forEach(function (job) {
+    var card = createCicdCard(job, "job", state.ui.selectedCicd.jobId === job.id);
+    card.appendChild(createDescription(job.description));
+    els.cicdJobList.appendChild(card);
+  });
+}
+
+function renderCicdStages() {
+  els.cicdStageList.replaceChildren();
+  if (!state.cicd.stages.length) {
+    appendEmpty(els.cicdStageList, "No stages defined yet. Create stages to group related CI/CD jobs.");
+    return;
+  }
+  state.cicd.stages.forEach(function (stage) {
+    var card = createCicdCard(stage, "stage", state.ui.selectedCicd.stageId === stage.id);
+    card.appendChild(createDescription(stage.description));
+    var meta = document.createElement("div");
+    meta.className = "cicd-card-meta";
+    meta.appendChild(createTextChip("Jobs: " + namesForIds(state.cicd.jobs, stage.jobIds), "commit-chip"));
+    meta.appendChild(createTextChip("Depends on: " + namesForIds(state.cicd.stages, stage.dependencies), "commit-chip"));
+    meta.appendChild(createTextChip(stage.skip ? "Skipped: Yes" : "Skipped: No", stage.skip ? "tag-chip" : "status-chip"));
+    card.appendChild(meta);
+    els.cicdStageList.appendChild(card);
+  });
+}
+
+function renderCicdPipelines() {
+  els.cicdPipelineList.replaceChildren();
+  if (!state.cicd.pipelines.length) {
+    appendEmpty(els.cicdPipelineList, "No pipelines defined yet. Create a pipeline by selecting stages and trigger rules.");
+    return;
+  }
+  state.cicd.pipelines.forEach(function (pipeline) {
+    var card = createCicdCard(pipeline, "pipeline", state.ui.selectedCicd.pipelineId === pipeline.id);
+    card.appendChild(createDescription(pipeline.description));
+    var meta = document.createElement("div");
+    meta.className = "cicd-card-meta";
+    var enabledTriggers = pipeline.triggers.filter(function (trigger) { return trigger.enabled; }).map(formatTrigger).filter(Boolean);
+    meta.appendChild(createTextChip("Stages: " + namesForIds(state.cicd.stages, pipeline.stageIds), "commit-chip"));
+    meta.appendChild(createTextChip("Trigger rules: " + (enabledTriggers.join(", ") || "None enabled"), enabledTriggers.length ? "status-chip" : "tag-chip"));
+    card.appendChild(meta);
+    card.appendChild(createPipelineFlow(pipeline));
+    els.cicdPipelineList.appendChild(card);
+  });
+}
+
+function renderCicdAssignments() {
+  els.cicdAssignmentList.replaceChildren();
+  if (!state.cicd.assignments.length) {
+    appendEmpty(els.cicdAssignmentList, "No pipeline assignments yet. Assign pipelines to branches or merge dots from your Git graph.");
+    return;
+  }
+  state.cicd.assignments.forEach(function (assignment) {
+    var card = createCicdCard(assignment, "assignment", state.ui.selectedCicd.assignmentId === assignment.id, getTargetLabel(assignment.targetType, assignment.targetId));
+    var meta = document.createElement("div");
+    meta.className = "cicd-card-meta";
+    meta.appendChild(createTextChip("Type: " + (assignment.targetType === "branch" ? "Branch" : "Merge dot"), "status-chip"));
+    meta.appendChild(createTextChip("Pipelines: " + namesForIds(state.cicd.pipelines, assignment.pipelineIds), "commit-chip"));
+    card.appendChild(meta);
+    els.cicdAssignmentList.appendChild(card);
+  });
+}
+
+function createCicdCard(entity, type, selected, titleOverride) {
+  var card = document.createElement("article");
+  card.className = selected ? "cicd-card is-selected" : "cicd-card";
+  var header = document.createElement("div");
+  header.className = "cicd-card-header";
+  var title = document.createElement("h3");
+  title.textContent = titleOverride || entity.name;
+  var actions = document.createElement("div");
+  actions.className = "cicd-card-actions";
+  var edit = document.createElement("button");
+  edit.className = "button button-secondary mini-button";
+  edit.type = "button";
+  edit.dataset.editCicdType = type;
+  edit.dataset.editCicdId = entity.id;
+  edit.textContent = "Edit";
+  var remove = document.createElement("button");
+  remove.className = "button button-ghost-danger mini-button";
+  remove.type = "button";
+  remove.dataset.deleteCicdType = type;
+  remove.dataset.deleteCicdId = entity.id;
+  remove.textContent = "Delete";
+  actions.append(edit, remove);
+  header.append(title, actions);
+  card.appendChild(header);
+  return card;
+}
+
+function createDescription(description) {
+  var element = document.createElement(description ? "p" : "small");
+  element.textContent = description || "No description.";
+  return element;
+}
+
+function createTriggerList(pipeline) {
+  var meta = document.createElement("div");
+  meta.className = "cicd-card-meta";
+  var enabledTriggers = pipeline.triggers.filter(function (trigger) { return trigger.enabled; }).map(formatTrigger).filter(Boolean);
+  if (!enabledTriggers.length) enabledTriggers = ["No trigger rule enabled"];
+  enabledTriggers.forEach(function (label) {
+    meta.appendChild(createTextChip(label, "status-chip"));
+  });
+  return meta;
+}
+
+function createPipelineFlow(pipeline) {
+  var flow = document.createElement("div");
+  flow.className = "cicd-flow";
+  var stages = pipeline.stageIds
+    .map(function (stageId) { return getCicdStage(stageId); })
+    .filter(Boolean);
+  if (stages.length > 1) flow.classList.add("has-connectors");
+  if (!stages.length) {
+    var empty = document.createElement("small");
+    empty.textContent = "No stages selected.";
+    flow.appendChild(empty);
+    return flow;
+  }
+  stages.forEach(function (stage, index) {
+    var card = document.createElement("div");
+    card.className = stage.skip ? "cicd-flow-stage is-skipped" : "cicd-flow-stage";
+    var title = document.createElement("button");
+    title.type = "button";
+    title.className = "cicd-stage-title";
+    title.textContent = stage.name;
+    title.dataset.focusCicdType = "stage";
+    title.dataset.focusCicdId = stage.id;
+    var jobList = document.createElement("div");
+    jobList.className = "cicd-flow-jobs";
+    stage.jobIds.forEach(function (jobId) {
+      var job = getCicdJob(jobId);
+      if (!job) return;
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "cicd-job-row";
+      row.dataset.focusCicdType = "job";
+      row.dataset.focusCicdId = job.id;
+      var name = document.createElement("span");
+      name.className = "cicd-job-name";
+      name.textContent = job.name;
+      row.appendChild(name);
+      jobList.appendChild(row);
+    });
+    if (!stage.jobIds.length) {
+      var noJobs = document.createElement("small");
+      noJobs.textContent = "No jobs";
+      jobList.appendChild(noJobs);
+    }
+    var deps = document.createElement("small");
+    deps.textContent = "Depends on: " + namesForIds(state.cicd.stages, stage.dependencies);
+    card.append(title, jobList, deps);
+    if (stage.skip) card.appendChild(createTextChip("Skipped", "tag-chip"));
+    flow.appendChild(card);
+  });
+  return flow;
+}
+
+function appendEmpty(container, message) {
+  var empty = document.createElement("p");
+  empty.className = "empty-note";
+  empty.textContent = message;
+  container.appendChild(empty);
+}
+
+function namesForIds(items, ids) {
+  var names = uniqueStrings(ids).map(function (id) {
+    var item = items.find(function (candidate) { return candidate.id === id; });
+    return item ? item.name : "missing";
+  });
+  return names.length ? names.join(", ") : "-";
+}
+
+function getCicdJob(jobId) {
+  return state.cicd.jobs.find(function (job) { return job.id === jobId; });
+}
+
+function getCicdStage(stageId) {
+  return state.cicd.stages.find(function (stage) { return stage.id === stageId; });
+}
+
+function getCicdPipeline(pipelineId) {
+  return state.cicd.pipelines.find(function (pipeline) { return pipeline.id === pipelineId; });
+}
+
+function validateCicdName(value, label, items, currentId) {
+  var name = value.trim();
+  if (!name) return { ok: false, message: label + " is required." };
+  if (name.length > 64) return { ok: false, message: label + " is too long." };
+  var lower = name.toLowerCase();
+  var exists = items.some(function (item) {
+    return item.id !== currentId && item.name.toLowerCase() === lower;
+  });
+  if (exists) return { ok: false, message: label + " should be unique." };
+  return { ok: true, value: name };
+}
+
+function renderAssignmentTargetOptions() {
+  if (!els.cicdAssignmentTarget) return;
+  var targetType = els.cicdAssignmentTargetType.value || "branch";
+  var selected = els.cicdAssignmentTarget.value;
+  var targets = getAssignmentTargets(targetType);
+  if (!targets.some(function (target) { return target.value === selected; })) selected = targets[0] ? targets[0].value : "";
+  replaceOptions(els.cicdAssignmentTarget, targets, selected);
+}
+
+function getAssignmentTargets(targetType) {
+  if (targetType === "merge_dot") return getMergeDotTargets();
+  return state.branches.map(function (branch) {
+    return { value: branch.id, text: branch.name };
+  });
+}
+
+function getMergeDotTargets() {
+  return state.mergeRequests
+    .filter(function (mr) { return mr.status === "merged" && (mr.mergeCommitId || mr.id); })
+    .map(function (mr) {
+      return { value: getMergeDotId(mr), text: getMergeDotLabel(mr) };
+    });
+}
+
+function getMergeDotLabel(mr) {
+  var source = getBranch(mr.sourceBranchId);
+  var target = getBranch(mr.targetBranchId);
+  return "MR " + (source ? source.name : "missing") + " -> " + (target ? target.name : "missing");
+}
+
+function getTargetLabel(targetType, targetId) {
+  if (targetType === "branch") {
+    var branch = getBranch(targetId);
+    return branch ? branch.name : "Missing branch " + targetId;
+  }
+  var mergeRequest = state.mergeRequests.find(function (mr) {
+    return getMergeDotId(mr) === targetId || mr.id === targetId;
+  });
+  return mergeRequest ? getMergeDotLabel(mergeRequest) : "Missing merge dot " + targetId;
+}
+
+function setMainTab(tab) {
+  if (CICD_MAIN_TABS.indexOf(tab) < 0) return;
+  state.ui.activeMainTab = tab;
+  render();
+}
+
+function setCicdTab(tab) {
+  if (CICD_SUB_TABS.indexOf(tab) < 0) return;
+  state.ui.activeMainTab = "cicd";
+  state.ui.activeCicdTab = tab;
+  render();
+}
+
+function focusCicd(type, id) {
+  var tabByType = {
+    job: "jobs",
+    stage: "stages",
+    pipeline: "pipelines",
+    assignment: "assignments",
+  };
+  state.ui.selectedCicd[type + "Id"] = id;
+  setCicdTab(tabByType[type]);
+}
+
+function clearCicdForm(type) {
+  if (type === "job") {
+    els.cicdJobId.value = "";
+    els.cicdJobName.value = "";
+    els.cicdJobDescription.value = "";
+  } else if (type === "stage") {
+    els.cicdStageId.value = "";
+    els.cicdStageName.value = "";
+    els.cicdStageDescription.value = "";
+    els.cicdStageSkip.checked = false;
+    setCheckedValues(els.cicdStageJobs, []);
+    setCheckedValues(els.cicdStageDependencies, []);
+  } else if (type === "pipeline") {
+    els.cicdPipelineId.value = "";
+    els.cicdPipelineName.value = "";
+    els.cicdPipelineDescription.value = "";
+    setCheckedValues(els.cicdPipelineStages, []);
+    els.cicdTriggerMergeRequest.checked = false;
+    els.cicdTriggerScheduled.checked = false;
+    els.cicdScheduleMode.value = "daily";
+    els.cicdScheduleTime.value = "19:00";
+    els.cicdScheduleDayOfWeek.value = "";
+    els.cicdScheduleDayOfMonth.value = "";
+    els.cicdScheduleCron.value = "";
+  } else if (type === "assignment") {
+    els.cicdAssignmentId.value = "";
+    els.cicdAssignmentTargetType.value = "branch";
+    setCheckedValues(els.cicdAssignmentPipelines, []);
+  }
+  clearFeedbacks();
+  render();
+}
+
+function editCicd(type, id) {
+  clearFeedbacks();
+  if (type === "job") {
+    var job = getCicdJob(id);
+    if (!job) return;
+    state.ui.selectedCicd.jobId = job.id;
+    state.ui.activeMainTab = "cicd";
+    state.ui.activeCicdTab = "jobs";
+    render();
+    els.cicdJobId.value = job.id;
+    els.cicdJobName.value = job.name;
+    els.cicdJobDescription.value = job.description || "";
+  } else if (type === "stage") {
+    var stage = getCicdStage(id);
+    if (!stage) return;
+    state.ui.selectedCicd.stageId = stage.id;
+    state.ui.activeMainTab = "cicd";
+    state.ui.activeCicdTab = "stages";
+    render();
+    els.cicdStageId.value = stage.id;
+    els.cicdStageName.value = stage.name;
+    els.cicdStageDescription.value = stage.description || "";
+    els.cicdStageSkip.checked = !!stage.skip;
+    setCheckedValues(els.cicdStageJobs, stage.jobIds);
+    setCheckedValues(els.cicdStageDependencies, stage.dependencies);
+  } else if (type === "pipeline") {
+    var pipeline = getCicdPipeline(id);
+    if (!pipeline) return;
+    state.ui.selectedCicd.pipelineId = pipeline.id;
+    state.ui.activeMainTab = "cicd";
+    state.ui.activeCicdTab = "pipelines";
+    render();
+    els.cicdPipelineId.value = pipeline.id;
+    els.cicdPipelineName.value = pipeline.name;
+    els.cicdPipelineDescription.value = pipeline.description || "";
+    setCheckedValues(els.cicdPipelineStages, pipeline.stageIds);
+    setPipelineTriggerFields(pipeline);
+  } else if (type === "assignment") {
+    var assignment = state.cicd.assignments.find(function (item) { return item.id === id; });
+    if (!assignment) return;
+    state.ui.selectedCicd.assignmentId = assignment.id;
+    state.ui.activeMainTab = "cicd";
+    state.ui.activeCicdTab = "assignments";
+    render();
+    els.cicdAssignmentId.value = assignment.id;
+    els.cicdAssignmentTargetType.value = assignment.targetType;
+    renderAssignmentTargetOptions();
+    els.cicdAssignmentTarget.value = assignment.targetId;
+    setCheckedValues(els.cicdAssignmentPipelines, assignment.pipelineIds);
+  }
+}
+
+function setCheckedValues(container, values) {
+  var checked = new Set(values || []);
+  if (!container) return;
+  container.querySelectorAll("input[type='checkbox']").forEach(function (input) {
+    input.checked = checked.has(input.value);
+  });
+}
+
+function setPipelineTriggerFields(pipeline) {
+  var mergeTrigger = pipeline.triggers.find(function (trigger) { return trigger.type === "on_merge_request"; });
+  var scheduledTrigger = pipeline.triggers.find(function (trigger) { return trigger.type === "scheduled"; });
+  var schedule = scheduledTrigger && scheduledTrigger.schedule ? scheduledTrigger.schedule : {};
+  els.cicdTriggerMergeRequest.checked = !!(mergeTrigger && mergeTrigger.enabled);
+  els.cicdTriggerScheduled.checked = !!(scheduledTrigger && scheduledTrigger.enabled);
+  els.cicdScheduleMode.value = schedule.mode || "daily";
+  els.cicdScheduleTime.value = schedule.time || "19:00";
+  els.cicdScheduleDayOfWeek.value = schedule.dayOfWeek || "";
+  els.cicdScheduleDayOfMonth.value = schedule.dayOfMonth || "";
+  els.cicdScheduleCron.value = schedule.cron || "";
+}
+
+function saveCicdJob(event) {
+  event.preventDefault();
+  var id = els.cicdJobId.value;
+  var result = validateCicdName(els.cicdJobName.value, "Job name", state.cicd.jobs, id);
+  if (!result.ok) {
+    setFeedback(els.cicdJobFeedback, result.message, "error");
+    return;
+  }
+  var existing = getCicdJob(id);
+  if (existing) {
+    existing.name = result.value;
+    existing.description = els.cicdJobDescription.value.trim();
+    addAction("cicd", "Updated CI/CD job " + existing.name);
+  } else {
+    var job = { id: nextId("cicdJob"), name: result.value, description: els.cicdJobDescription.value.trim() };
+    state.cicd.jobs.push(job);
+    state.ui.selectedCicd.jobId = job.id;
+    addAction("cicd", "Created CI/CD job " + job.name);
+  }
+  clearCicdForm("job");
+}
+
+function saveCicdStage(event) {
+  event.preventDefault();
+  var id = els.cicdStageId.value;
+  var result = validateCicdName(els.cicdStageName.value, "Stage name", state.cicd.stages, id);
+  if (!result.ok) {
+    setFeedback(els.cicdStageFeedback, result.message, "error");
+    return;
+  }
+  var dependencies = getCheckedValues(els.cicdStageDependencies);
+  var candidateId = id || "candidate";
+  if (hasStageDependencyCycle(state.cicd.stages, candidateId, dependencies)) {
+    setFeedback(els.cicdStageFeedback, "Stage dependencies cannot create a cycle.", "error");
+    return;
+  }
+  var existing = getCicdStage(id);
+  if (existing) {
+    existing.name = result.value;
+    existing.description = els.cicdStageDescription.value.trim();
+    existing.jobIds = getCheckedValues(els.cicdStageJobs);
+    existing.dependencies = dependencies;
+    existing.skip = els.cicdStageSkip.checked;
+    addAction("cicd", "Updated CI/CD stage " + existing.name);
+  } else {
+    var stage = {
+      id: nextId("cicdStage"),
+      name: result.value,
+      description: els.cicdStageDescription.value.trim(),
+      jobIds: getCheckedValues(els.cicdStageJobs),
+      dependencies: dependencies,
+      skip: els.cicdStageSkip.checked,
+    };
+    state.cicd.stages.push(stage);
+    state.ui.selectedCicd.stageId = stage.id;
+    addAction("cicd", "Created CI/CD stage " + stage.name);
+  }
+  clearCicdForm("stage");
+}
+
+function saveCicdPipeline(event) {
+  event.preventDefault();
+  var id = els.cicdPipelineId.value;
+  var result = validateCicdName(els.cicdPipelineName.value, "Pipeline name", state.cicd.pipelines, id);
+  if (!result.ok) {
+    setFeedback(els.cicdPipelineFeedback, result.message, "error");
+    return;
+  }
+  var triggers = collectPipelineTriggers();
+  var existing = getCicdPipeline(id);
+  if (existing) {
+    existing.name = result.value;
+    existing.description = els.cicdPipelineDescription.value.trim();
+    existing.stageIds = getCheckedValues(els.cicdPipelineStages);
+    existing.triggers = triggers;
+    addAction("cicd", "Updated CI/CD pipeline " + existing.name);
+  } else {
+    var pipeline = {
+      id: nextId("cicdPipeline"),
+      name: result.value,
+      description: els.cicdPipelineDescription.value.trim(),
+      stageIds: getCheckedValues(els.cicdPipelineStages),
+      triggers: triggers,
+    };
+    state.cicd.pipelines.push(pipeline);
+    state.ui.selectedCicd.pipelineId = pipeline.id;
+    addAction("cicd", "Created CI/CD pipeline " + pipeline.name);
+  }
+  clearCicdForm("pipeline");
+}
+
+function collectPipelineTriggers() {
+  return normalizeTriggers([
+    { type: "on_merge_request", enabled: els.cicdTriggerMergeRequest.checked },
+    {
+      type: "scheduled",
+      enabled: els.cicdTriggerScheduled.checked,
+      schedule: {
+        mode: els.cicdScheduleMode.value,
+        time: els.cicdScheduleTime.value,
+        dayOfWeek: els.cicdScheduleDayOfWeek.value,
+        dayOfMonth: els.cicdScheduleDayOfMonth.value ? Number(els.cicdScheduleDayOfMonth.value) : undefined,
+        cron: els.cicdScheduleCron.value,
+      },
+    },
+  ]);
+}
+
+function saveCicdAssignment(event) {
+  event.preventDefault();
+  var id = els.cicdAssignmentId.value;
+  var targetType = els.cicdAssignmentTargetType.value;
+  var targetId = els.cicdAssignmentTarget.value;
+  var pipelineIds = getCheckedValues(els.cicdAssignmentPipelines);
+  if (!targetId) {
+    setFeedback(els.cicdAssignmentFeedback, "Target is required.", "error");
+    return;
+  }
+  if (!pipelineIds.length) {
+    setFeedback(els.cicdAssignmentFeedback, "Select at least one pipeline.", "error");
+    return;
+  }
+  var duplicate = state.cicd.assignments.find(function (assignment) {
+    return assignment.id !== id && assignment.targetType === targetType && assignment.targetId === targetId;
+  });
+  if (duplicate) {
+    duplicate.pipelineIds = pipelineIds;
+    state.cicd.assignments = state.cicd.assignments.filter(function (assignment) { return assignment.id !== id; });
+    state.ui.selectedCicd.assignmentId = duplicate.id;
+    addAction("cicd", "Updated CI/CD assignment for " + getTargetLabel(targetType, targetId));
+    clearCicdForm("assignment");
+    return;
+  }
+  var existing = state.cicd.assignments.find(function (assignment) { return assignment.id === id; });
+  if (existing) {
+    existing.targetType = targetType;
+    existing.targetId = targetId;
+    existing.pipelineIds = pipelineIds;
+    addAction("cicd", "Updated CI/CD assignment for " + getTargetLabel(targetType, targetId));
+  } else {
+    var assignment = {
+      id: nextId("cicdAssignment"),
+      targetType: targetType,
+      targetId: targetId,
+      pipelineIds: pipelineIds,
+    };
+    state.cicd.assignments.push(assignment);
+    state.ui.selectedCicd.assignmentId = assignment.id;
+    addAction("cicd", "Created CI/CD assignment for " + getTargetLabel(targetType, targetId));
+  }
+  clearCicdForm("assignment");
+}
+
+function deleteCicd(type, id) {
+  if (type === "job") {
+    var job = getCicdJob(id);
+    if (!job) return;
+    state.cicd.jobs = state.cicd.jobs.filter(function (item) { return item.id !== id; });
+    state.cicd.stages.forEach(function (stage) {
+      stage.jobIds = stage.jobIds.filter(function (jobId) { return jobId !== id; });
+    });
+    addAction("cicd", "Deleted CI/CD job " + job.name);
+  } else if (type === "stage") {
+    var stage = getCicdStage(id);
+    if (!stage) return;
+    state.cicd.stages = state.cicd.stages.filter(function (item) { return item.id !== id; });
+    state.cicd.stages.forEach(function (item) {
+      item.dependencies = item.dependencies.filter(function (stageId) { return stageId !== id; });
+    });
+    state.cicd.pipelines.forEach(function (pipeline) {
+      pipeline.stageIds = pipeline.stageIds.filter(function (stageId) { return stageId !== id; });
+    });
+    addAction("cicd", "Deleted CI/CD stage " + stage.name);
+  } else if (type === "pipeline") {
+    var pipeline = getCicdPipeline(id);
+    if (!pipeline) return;
+    state.cicd.pipelines = state.cicd.pipelines.filter(function (item) { return item.id !== id; });
+    state.cicd.assignments.forEach(function (assignment) {
+      assignment.pipelineIds = assignment.pipelineIds.filter(function (pipelineId) { return pipelineId !== id; });
+    });
+    state.cicd.assignments = state.cicd.assignments.filter(function (assignment) {
+      return assignment.pipelineIds.length;
+    });
+    addAction("cicd", "Deleted CI/CD pipeline " + pipeline.name);
+  } else if (type === "assignment") {
+    var assignment = state.cicd.assignments.find(function (item) { return item.id === id; });
+    if (!assignment) return;
+    state.cicd.assignments = state.cicd.assignments.filter(function (item) { return item.id !== id; });
+    addAction("cicd", "Deleted CI/CD assignment for " + getTargetLabel(assignment.targetType, assignment.targetId));
+  }
+  render();
+}
+
+function loadCicdPreset() {
+  state.cicd = getCicdPresetConfig();
+  state.ui.activeMainTab = "cicd";
+  state.ui.activeCicdTab = "pipelines";
+  addAction("cicd", "Loaded starter CI/CD configuration");
+  render();
+}
+
+function selectCicdGraphTarget(targetType, targetId) {
+  manageCicdTarget(targetType, targetId);
+}
+
+function manageCicdTarget(targetType, targetId) {
+  var assignment = getPipelineAssignmentForTarget(state.cicd, targetType, targetId);
+  state.ui.activeMainTab = "cicd";
+  state.ui.activeCicdTab = "assignments";
+  if (assignment) {
+    editCicd("assignment", assignment.id);
+    return;
+  }
+  clearCicdForm("assignment");
+  els.cicdAssignmentTargetType.value = targetType;
+  renderAssignmentTargetOptions();
+  els.cicdAssignmentTarget.value = targetId;
+  render();
+}
+
 function selectCommit(commitId) {
   if (!getCommit(commitId)) return;
   state.selectedCommitId = commitId;
@@ -500,6 +1400,20 @@ function changeGraphOrientation(orientation) {
   if (GRAPH_ORIENTATIONS.indexOf(orientation) < 0 || orientation === state.settings.graphOrientation) return;
   state.settings.graphOrientation = orientation;
   addAction("layout", "Changed graph direction to " + orientation);
+  render();
+}
+
+function getGraphZoom() {
+  return typeof state.ui.graphZoom === "number" ? state.ui.graphZoom : 1;
+}
+
+function changeGraphZoom(delta) {
+  state.ui.graphZoom = Math.min(1.8, Math.max(0.65, Math.round((getGraphZoom() + delta) * 100) / 100));
+  render();
+}
+
+function resetGraphZoom() {
+  state.ui.graphZoom = 1;
   render();
 }
 
@@ -626,6 +1540,12 @@ function applyCommitRemoval(removedIds, branchIdsToRemove, summary) {
     return !removedBranchIds.has(mr.sourceBranchId) &&
       !removedBranchIds.has(mr.targetBranchId) &&
       !(mr.mergeCommitId && removedIds.has(mr.mergeCommitId));
+  });
+  state.cicd.assignments = state.cicd.assignments.filter(function (assignment) {
+    if (assignment.targetType === "branch") return !removedBranchIds.has(assignment.targetId);
+    return state.mergeRequests.some(function (mr) {
+      return getMergeDotId(mr) === assignment.targetId || mr.id === assignment.targetId;
+    });
   });
 
   if (!getBranch(state.currentBranchId)) state.currentBranchId = "root";
@@ -772,6 +1692,8 @@ function handleCreateBranch(event) {
   } else {
     addAction("branch", "Created independent branch " + branch.name + " as " + commit.id);
   }
+  state.ui.onboardingDismissed = true;
+  trackEvent("branch_created", { branch_name: branch.name, branch_id: branch.id });
   els.branchName.value = "";
   els.branchFirstCommitMessage.value = "create new branch";
   closeModal(els.createBranchModal);
@@ -808,6 +1730,8 @@ function handleCreateCommit(event) {
   state.currentBranchId = branch.id;
   state.selectedCommitId = commit.id;
   addAction("commit", "Committed " + commit.id + " on " + branch.name);
+  state.ui.onboardingDismissed = true;
+  trackEvent("commit_created", { commit_id: commit.id, branch_name: branch.name });
   els.commitMessage.value = "";
   closeModal(els.commitModal);
   render();
@@ -848,6 +1772,8 @@ function handleCreateMergeRequest(event) {
 
   state.mergeRequests.push(mr);
   addAction("mr", "Opened MR " + mr.id + ": " + source.name + " into " + target.name);
+  state.ui.onboardingDismissed = true;
+  trackEvent("mr_created", { mr_id: mr.id, source: source.name, target: target.name });
   els.mrTitle.value = "";
   closeModal(els.mergeRequestModal);
   render();
@@ -885,6 +1811,8 @@ function mergeRequest(mrId) {
   state.currentBranchId = target.id;
   state.selectedCommitId = commit.id;
   addAction("merge", "Merged " + source.name + " into " + target.name + " as " + commit.id);
+  state.ui.onboardingDismissed = true;
+  trackEvent("mr_merged", { mr_id: mr.id, commit_id: commit.id, source: source.name, target: target.name });
   render();
 }
 
@@ -934,6 +1862,8 @@ function handleCreateTag(event) {
 
   state.tags.push(tag);
   addAction("tag", "Created tag " + tag.name + " on " + target.id);
+  state.ui.onboardingDismissed = true;
+  trackEvent("tag_created", { tag_name: tag.name, commit_id: target.id });
   els.tagName.value = "";
   closeModal(els.tagModal);
   render();
@@ -965,10 +1895,123 @@ function resetSimulator() {
   render();
 }
 
+function resetToBlankGraph(options) {
+  var rootName = state.settings.rootBranchName;
+  var graphOrientation = state.settings.graphOrientation;
+  state = createInitialState(rootName);
+  state.settings.graphOrientation = graphOrientation;
+  state.ui.onboardingDismissed = !!(options && options.dismissOnboarding);
+  state.ui.lastTemplateId = null;
+  pendingDelete = null;
+  editingTagId = null;
+  clearFeedbacks();
+  setProjectFileFeedback("", null);
+  render();
+}
+
+function startBlankGraph() {
+  state.ui.onboardingDismissed = true;
+  state.ui.lastTemplateId = null;
+  trackEvent("start_blank_clicked");
+  render();
+}
+
+function loadTemplate(templateId, source) {
+  var template = getTemplateById(templateId);
+  if (!template) return;
+
+  if (template.isPremium) {
+    trackEvent("premium_template_clicked", { template_id: template.id, source: source || "unknown" });
+    openProModal("Premium workflow templates");
+    return;
+  }
+
+  var rootName = state.settings.rootBranchName;
+  var graphOrientation = state.settings.graphOrientation;
+  var nextState = createTemplateState(template, rootName, graphOrientation);
+  if (!nextState) return;
+
+  state = nextState;
+  pendingDelete = null;
+  editingTagId = null;
+  addAction("template", "Opened template " + template.name);
+  closeAllModals();
+  navigateToApp();
+  render();
+  trackEvent("template_opened", {
+    template_id: template.id,
+    template_name: template.name,
+    source: source || "unknown",
+  });
+}
+
+function openTemplateGallery() {
+  renderTemplateGallery();
+  trackEvent("template_gallery_opened");
+  openModal(els.templateGalleryModal);
+}
+
+function openExportModal() {
+  trackEvent("export_clicked");
+  openModal(els.exportModal);
+}
+
+function openProModal(feature) {
+  if (els.proModalContext) {
+    els.proModalContext.textContent =
+      "Pro will include SVG/PDF export, high-resolution PNG, watermark removal, premium workflow templates, and presentation tools for educators.";
+  }
+  trackEvent("pro_modal_opened", { feature: feature || "unknown" });
+  closeModal(els.exportModal);
+  closeModal(els.templateGalleryModal);
+  openModal(els.proModal);
+}
+
+function openWaitlistModal() {
+  trackEvent("waitlist_clicked");
+  closeAllModals();
+  openModal(els.waitlistModal);
+}
+
+function openFeedbackModal() {
+  trackEvent("feedback_clicked");
+  closeAllModals();
+  openModal(els.feedbackModal);
+}
+
+function submitNetlifyForm(event, successEventName, feedbackElement, successMessage) {
+  event.preventDefault();
+  var form = event.currentTarget;
+  var submitButton = form.querySelector("button[type='submit']");
+  var body = new URLSearchParams(new FormData(form)).toString();
+
+  if (submitButton) submitButton.disabled = true;
+  setFeedback(feedbackElement, "Sending...", null);
+
+  window.fetch("/", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body,
+  })
+    .then(function (response) {
+      if (!response.ok) throw new Error("Form submission failed");
+      form.reset();
+      setFeedback(feedbackElement, successMessage, "success");
+      trackEvent(successEventName);
+    })
+    .catch(function () {
+      setFeedback(feedbackElement, "Could not submit right now. Try again after deployment.", "error");
+    })
+    .finally(function () {
+      if (submitButton) submitButton.disabled = false;
+    });
+}
+
 function handleExportProject() {
   try {
     downloadProjectFile(state);
     setProjectFileFeedback("Project JSON exported.", "success");
+    trackEvent("json_exported");
   } catch (error) {
     setProjectFileFeedback("Could not export project JSON.", "error");
   }
@@ -997,6 +2040,7 @@ function handleProjectFileSelected(event) {
       closeAllModals();
       render();
       setProjectFileFeedback("Project JSON imported.", "success");
+      trackEvent("json_imported");
     })
     .catch(function () {
       setProjectFileFeedback("Could not read that project file.", "error");
@@ -1072,14 +2116,24 @@ els.openCreateBranchModal.addEventListener("click", openCreateBranchModal);
 els.openCommitModal.addEventListener("click", openCommitModal);
 els.openMergeRequestModal.addEventListener("click", openMergeRequestModal);
 els.openTagModal.addEventListener("click", openTagModal);
+els.graphZoomOutButton.addEventListener("click", function () { changeGraphZoom(-0.1); });
+els.graphZoomInButton.addEventListener("click", function () { changeGraphZoom(0.1); });
+els.graphZoomResetButton.addEventListener("click", resetGraphZoom);
 els.deleteCommitButton.addEventListener("click", openDeleteCommitModal);
 els.confirmDeleteButton.addEventListener("click", confirmDelete);
-els.exportGraphButton.addEventListener("click", function () {
-  exportGraphPng({ state: state, els: els, getBranch: getBranch });
-});
+els.openTemplateGalleryButton.addEventListener("click", openTemplateGallery);
+els.feedbackButton.addEventListener("click", openFeedbackModal);
+els.exportGraphButton.addEventListener("click", openExportModal);
 els.exportProjectButton.addEventListener("click", handleExportProject);
 els.importProjectButton.addEventListener("click", openProjectImportPicker);
 els.projectFileInput.addEventListener("change", handleProjectFileSelected);
+els.startBlankButton.addEventListener("click", startBlankGraph);
+els.waitlistForm.addEventListener("submit", function (event) {
+  submitNetlifyForm(event, "waitlist_submitted", els.waitlistFeedback, "You're on the waitlist.");
+});
+els.feedbackForm.addEventListener("submit", function (event) {
+  submitNetlifyForm(event, "feedback_submitted", els.feedbackFormFeedback, "Thanks, feedback received.");
+});
 els.graphScroll.addEventListener("scroll", function () {
   syncBranchAxisScroll(els);
 });
@@ -1104,6 +2158,116 @@ document.querySelectorAll(".modal-backdrop").forEach(function (backdrop) {
   });
 });
 
+document.addEventListener("click", function (event) {
+  var mainTabButton = event.target.closest("[data-main-tab]");
+  if (mainTabButton) {
+    event.preventDefault();
+    setMainTab(mainTabButton.dataset.mainTab);
+    return;
+  }
+
+  var cicdTabButton = event.target.closest("[data-cicd-tab]");
+  if (cicdTabButton) {
+    event.preventDefault();
+    setCicdTab(cicdTabButton.dataset.cicdTab);
+    return;
+  }
+
+  var editCicdButton = event.target.closest("[data-edit-cicd-type]");
+  if (editCicdButton) {
+    event.preventDefault();
+    editCicd(editCicdButton.dataset.editCicdType, editCicdButton.dataset.editCicdId);
+    return;
+  }
+
+  var deleteCicdButton = event.target.closest("[data-delete-cicd-type]");
+  if (deleteCicdButton) {
+    event.preventDefault();
+    deleteCicd(deleteCicdButton.dataset.deleteCicdType, deleteCicdButton.dataset.deleteCicdId);
+    return;
+  }
+
+  var focusCicdButton = event.target.closest("[data-focus-cicd-type]");
+  if (focusCicdButton) {
+    event.preventDefault();
+    focusCicd(focusCicdButton.dataset.focusCicdType, focusCicdButton.dataset.focusCicdId);
+    return;
+  }
+
+  var manageCicdButton = event.target.closest("[data-manage-cicd-target-type]");
+  if (manageCicdButton) {
+    event.preventDefault();
+    manageCicdTarget(manageCicdButton.dataset.manageCicdTargetType, manageCicdButton.dataset.manageCicdTargetId);
+    return;
+  }
+
+  var landingLink = event.target.closest("[data-route='landing']");
+  if (landingLink) {
+    event.preventDefault();
+    navigateToLanding();
+    return;
+  }
+
+  var routeLink = event.target.closest("[data-route='app']");
+  if (routeLink) {
+    event.preventDefault();
+    if (routeLink.dataset.track) trackEvent(routeLink.dataset.track);
+    if (routeLink.dataset.startMode === "blank") {
+      resetToBlankGraph({ dismissOnboarding: true });
+    }
+    navigateToApp();
+    return;
+  }
+
+  var scrollButton = event.target.closest("[data-scroll-target]");
+  if (scrollButton) {
+    event.preventDefault();
+    if (scrollButton.dataset.track) trackEvent(scrollButton.dataset.track);
+    var target = document.getElementById(scrollButton.dataset.scrollTarget);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  var waitlistButton = event.target.closest("[data-open-waitlist]");
+  if (waitlistButton) {
+    event.preventDefault();
+    openWaitlistModal();
+    return;
+  }
+
+  var feedbackButton = event.target.closest("[data-open-feedback]");
+  if (feedbackButton) {
+    event.preventDefault();
+    openFeedbackModal();
+    return;
+  }
+
+  var templateButton = event.target.closest("[data-template-id]");
+  if (templateButton) {
+    event.preventDefault();
+    loadTemplate(templateButton.dataset.templateId, templateButton.dataset.templateSource);
+    return;
+  }
+
+  var exportButton = event.target.closest("[data-export-option]");
+  if (exportButton) {
+    event.preventDefault();
+    if (exportButton.dataset.exportOption === "png") {
+      closeModal(els.exportModal);
+      trackEvent("export_png_clicked");
+      exportGraphPng({ state: state, els: els, getBranch: getBranch });
+    }
+    return;
+  }
+
+  var proButton = event.target.closest("[data-pro-feature]");
+  if (proButton) {
+    event.preventDefault();
+    trackEvent("export_pro_option_clicked", { option: proButton.dataset.proFeature });
+    openProModal(proButton.dataset.proFeature);
+  }
+});
+
 document.addEventListener("keydown", function (event) {
   if (event.key !== "Escape") return;
   var modal = getOpenModal();
@@ -1119,6 +2283,12 @@ els.currentBranchSelect.addEventListener("change", function (event) {
 });
 
 els.gitGraph.addEventListener("click", function (event) {
+  var cicdTarget = event.target.closest("[data-cicd-target-type]");
+  if (cicdTarget) {
+    event.preventDefault();
+    selectCicdGraphTarget(cicdTarget.dataset.cicdTargetType, cicdTarget.dataset.cicdTargetId);
+    return;
+  }
   var tag = event.target.closest("[data-tag-id]");
   if (tag) {
     openEditTagModal(tag.dataset.tagId);
@@ -1130,6 +2300,12 @@ els.gitGraph.addEventListener("click", function (event) {
 
 els.gitGraph.addEventListener("keydown", function (event) {
   if (event.key !== "Enter" && event.key !== " ") return;
+  var cicdTarget = event.target.closest("[data-cicd-target-type]");
+  if (cicdTarget) {
+    event.preventDefault();
+    selectCicdGraphTarget(cicdTarget.dataset.cicdTargetType, cicdTarget.dataset.cicdTargetId);
+    return;
+  }
   var tag = event.target.closest("[data-tag-id]");
   if (tag) {
     event.preventDefault();
@@ -1142,11 +2318,37 @@ els.gitGraph.addEventListener("keydown", function (event) {
   selectCommit(target.dataset.commitId);
 });
 
+els.branchAxis.addEventListener("click", function (event) {
+  var cicdTarget = event.target.closest("[data-cicd-target-type]");
+  if (!cicdTarget) return;
+  selectCicdGraphTarget(cicdTarget.dataset.cicdTargetType, cicdTarget.dataset.cicdTargetId);
+});
+
+els.branchAxis.addEventListener("keydown", function (event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  var cicdTarget = event.target.closest("[data-cicd-target-type]");
+  if (!cicdTarget) return;
+  event.preventDefault();
+  selectCicdGraphTarget(cicdTarget.dataset.cicdTargetType, cicdTarget.dataset.cicdTargetId);
+});
+
 els.createBranchForm.addEventListener("submit", handleCreateBranch);
 els.branchFromEnabled.addEventListener("change", syncBranchSourceMode);
 els.commitForm.addEventListener("submit", handleCreateCommit);
 els.mergeRequestForm.addEventListener("submit", handleCreateMergeRequest);
 els.tagForm.addEventListener("submit", handleCreateTag);
+els.cicdJobForm.addEventListener("submit", saveCicdJob);
+els.cicdStageForm.addEventListener("submit", saveCicdStage);
+els.cicdPipelineForm.addEventListener("submit", saveCicdPipeline);
+els.cicdAssignmentForm.addEventListener("submit", saveCicdAssignment);
+els.cicdJobCancel.addEventListener("click", function () { clearCicdForm("job"); });
+els.cicdStageCancel.addEventListener("click", function () { clearCicdForm("stage"); });
+els.cicdPipelineCancel.addEventListener("click", function () { clearCicdForm("pipeline"); });
+els.cicdAssignmentCancel.addEventListener("click", function () { clearCicdForm("assignment"); });
+els.cicdAssignmentTargetType.addEventListener("change", function () {
+  renderAssignmentTargetOptions();
+});
+els.loadCicdPresetButton.addEventListener("click", loadCicdPreset);
 els.deleteTagButton.addEventListener("click", function () {
   if (editingTagId) deleteTag(editingTagId);
 });
@@ -1168,6 +2370,8 @@ els.deselectButton.addEventListener("click", function () {
 
 els.resetButton.addEventListener("click", resetSimulator);
 window.addEventListener("resize", scheduleRenderAfterResize);
+window.addEventListener("popstate", renderRoute);
 
 reindexBranchLanes();
 render();
+renderRoute();

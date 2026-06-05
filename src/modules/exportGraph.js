@@ -1,16 +1,27 @@
 import { EXPORT_FILENAME, GRAPH_LAYOUT } from "./config.js";
 import { svgEl } from "./ui.js";
 
+var WATERMARK_LOGO_URL = "logo.png";
+var cachedLogoDataUrl = null;
+var logoDataUrlRequest = null;
+
 export function exportGraphPng(context) {
   var els = context.els;
-  var exportData = buildExportSvg(context);
+  var originalButtonText = els.exportGraphButton.textContent;
+
+  els.exportGraphButton.disabled = true;
+  els.exportGraphButton.textContent = "Exporting...";
+
+  getLogoDataUrl().then(function (logoDataUrl) {
+    renderPngExport(buildExportSvg(context, logoDataUrl), els, originalButtonText);
+  });
+}
+
+function renderPngExport(exportData, els, originalButtonText) {
   var serialized = new XMLSerializer().serializeToString(exportData.svg);
   var svgBlob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
   var svgUrl = URL.createObjectURL(svgBlob);
   var image = new Image();
-
-  els.exportGraphButton.disabled = true;
-  els.exportGraphButton.textContent = "Exporting...";
 
   image.onload = function () {
     var scale = 2;
@@ -26,20 +37,20 @@ export function exportGraphPng(context) {
     canvas.toBlob(function (blob) {
       if (blob) downloadBlob(blob, EXPORT_FILENAME);
       els.exportGraphButton.disabled = false;
-      els.exportGraphButton.textContent = "Export PNG";
+      els.exportGraphButton.textContent = originalButtonText;
     }, "image/png");
   };
 
   image.onerror = function () {
     URL.revokeObjectURL(svgUrl);
     els.exportGraphButton.disabled = false;
-    els.exportGraphButton.textContent = "Export PNG";
+    els.exportGraphButton.textContent = originalButtonText;
   };
 
   image.src = svgUrl;
 }
 
-function buildExportSvg(context) {
+function buildExportSvg(context, logoDataUrl) {
   var state = context.state;
   var els = context.els;
   var getBranch = context.getBranch;
@@ -56,6 +67,7 @@ function buildExportSvg(context) {
 
   var output = svgEl("svg", {
     xmlns: "http://www.w3.org/2000/svg",
+    "xmlns:xlink": "http://www.w3.org/1999/xlink",
     width: String(exportWidth),
     height: String(exportHeight),
     viewBox: "0 0 " + exportWidth + " " + exportHeight,
@@ -99,12 +111,63 @@ function buildExportSvg(context) {
   source.setAttribute("height", String(graphHeight));
   source.setAttribute("viewBox", "0 0 " + graphWidth + " " + graphHeight);
   output.appendChild(source);
+  appendWatermark(output, exportWidth, exportHeight, logoDataUrl);
 
   return {
     svg: output,
     width: exportWidth,
     height: exportHeight,
   };
+}
+
+function appendWatermark(svg, width, height, logoDataUrl) {
+  var margin = 18;
+  var groupWidth = logoDataUrl ? 226 : 184;
+  var groupHeight = 44;
+  var x = Math.max(12, width - groupWidth - margin);
+  var y = Math.max(12, height - groupHeight - margin);
+  var logoSize = 24;
+  var textX = x + (logoDataUrl ? 44 : 16);
+  var textY = y + groupHeight / 2 + 1;
+
+  var group = svgEl("g", { class: "svg-watermark" });
+  group.appendChild(svgEl("rect", {
+    x: String(x),
+    y: String(y),
+    width: String(groupWidth),
+    height: String(groupHeight),
+    rx: "10",
+    fill: "#ffffff",
+    opacity: "0.94",
+  }));
+
+  if (logoDataUrl) {
+    group.appendChild(svgEl("image", {
+      href: logoDataUrl,
+      "xlink:href": logoDataUrl,
+      x: String(x + 12),
+      y: String(y + 10),
+      width: String(logoSize),
+      height: String(logoSize),
+      preserveAspectRatio: "xMidYMid meet",
+    }));
+  }
+
+  var label = svgEl("text", {
+    x: String(textX),
+    y: String(textY),
+    "dominant-baseline": "middle",
+    "font-family": "Inter, Arial, sans-serif",
+    "font-size": "13",
+    "font-weight": "700",
+  });
+  var madeWith = svgEl("tspan", { fill: "#475569" });
+  madeWith.textContent = "Made with ";
+  var product = svgEl("tspan", { fill: "#f97316", "font-weight": "800" });
+  product.textContent = "Git Grapher";
+  label.append(madeWith, product);
+  group.appendChild(label);
+  svg.appendChild(group);
 }
 
 function appendExportBranchAxis(context) {
@@ -143,6 +206,41 @@ function appendExportBranchAxis(context) {
     });
     text.textContent = branch.name;
     svg.appendChild(text);
+  });
+}
+
+function getLogoDataUrl() {
+  if (cachedLogoDataUrl) return Promise.resolve(cachedLogoDataUrl);
+  if (logoDataUrlRequest) return logoDataUrlRequest;
+  if (typeof fetch !== "function" || typeof FileReader === "undefined") return Promise.resolve(null);
+
+  logoDataUrlRequest = fetch(WATERMARK_LOGO_URL)
+    .then(function (response) {
+      if (!response.ok) throw new Error("Logo asset unavailable.");
+      return response.blob();
+    })
+    .then(blobToDataUrl)
+    .then(function (dataUrl) {
+      cachedLogoDataUrl = dataUrl;
+      return dataUrl;
+    })
+    .catch(function () {
+      return null;
+    });
+
+  return logoDataUrlRequest;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise(function (resolve) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      resolve(typeof reader.result === "string" ? reader.result : null);
+    };
+    reader.onerror = function () {
+      resolve(null);
+    };
+    reader.readAsDataURL(blob);
   });
 }
 

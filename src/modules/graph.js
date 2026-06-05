@@ -1,4 +1,5 @@
 import { GRAPH_LAYOUT } from "./config.js";
+import { getAssignedPipelines, getMergeDotId } from "./cicd.js";
 import { svgEl, truncate } from "./ui.js";
 
 export function renderGraph(context) {
@@ -16,9 +17,10 @@ export function renderGraph(context) {
     return a.seq - b.seq;
   });
   var laneCount = Math.max.apply(null, state.branches.map(function (branch) { return branch.lane; })) + 1;
-  var commitGap = GRAPH_LAYOUT.commitGap;
-  var laneGap = GRAPH_LAYOUT.laneGap;
-  var margin = GRAPH_LAYOUT.margin;
+  var layout = getScaledLayout(state);
+  var commitGap = layout.commitGap;
+  var laneGap = layout.laneGap;
+  var margin = layout.margin;
   var isVertical = orientation === "vertical";
   var viewport = getGraphViewport(els);
   var width = isVertical
@@ -42,8 +44,8 @@ export function renderGraph(context) {
     });
   });
 
-  renderBranchAxis({ state: state, els: els, width: width, height: height, orientation: orientation });
-  renderLaneLines({ state: state, svg: svg, positions: positions, margin: margin, width: width, height: height, orientation: orientation });
+  renderBranchAxis({ state: state, els: els, width: width, height: height, orientation: orientation, layout: layout });
+  renderLaneLines({ state: state, svg: svg, positions: positions, margin: margin, width: width, height: height, orientation: orientation, laneGap: laneGap });
   renderEdges({ state: state, svg: svg, orderedCommits: orderedCommits, positions: positions, getBranch: getBranch, getCommit: getCommit, orientation: orientation });
   renderNodes({ state: state, svg: svg, orderedCommits: orderedCommits, positions: positions });
   renderTagLabels({ state: state, svg: svg, positions: positions, graphWidth: width, orientation: orientation });
@@ -63,6 +65,22 @@ function getOrientation(state) {
   return state.settings && state.settings.graphOrientation === "vertical" ? "vertical" : "horizontal";
 }
 
+function getScaledLayout(state) {
+  var zoom = state.ui && typeof state.ui.graphZoom === "number" ? state.ui.graphZoom : 1;
+  zoom = Math.min(1.8, Math.max(0.65, zoom));
+  return {
+    commitGap: Math.round(GRAPH_LAYOUT.commitGap * zoom),
+    laneGap: Math.round(GRAPH_LAYOUT.laneGap * zoom),
+    branchAxisWidth: GRAPH_LAYOUT.branchAxisWidth,
+    margin: {
+      top: Math.round(GRAPH_LAYOUT.margin.top * zoom),
+      right: Math.round(GRAPH_LAYOUT.margin.right * zoom),
+      bottom: Math.round(GRAPH_LAYOUT.margin.bottom * zoom),
+      left: Math.round(GRAPH_LAYOUT.margin.left * zoom),
+    },
+  };
+}
+
 function getGraphViewport(els) {
   if (!els.graphScroll) return { width: 0, height: 0 };
   return {
@@ -77,25 +95,30 @@ function renderBranchAxis(context) {
   var width = context.width;
   var height = context.height;
   var orientation = context.orientation;
+  var layout = context.layout;
   els.branchAxis.replaceChildren();
   els.branchAxis.dataset.orientation = orientation;
 
   var inner = document.createElement("div");
   inner.className = "branch-axis-inner";
-  inner.style.height = orientation === "vertical" ? GRAPH_LAYOUT.branchAxisWidth + "px" : height + "px";
+  inner.style.height = orientation === "vertical" ? layout.branchAxisWidth + "px" : height + "px";
   inner.style.width = orientation === "vertical" ? width + "px" : "100%";
 
   state.branches.forEach(function (branch) {
     var label = document.createElement("div");
     label.className = "branch-axis-label";
+    label.title = branch.name;
     if (orientation === "vertical") {
-      label.style.left = (GRAPH_LAYOUT.margin.left + branch.lane * GRAPH_LAYOUT.laneGap - 48) + "px";
+      var verticalLabelWidth = Math.max(68, layout.laneGap - 12);
+      label.style.left = (layout.margin.left + branch.lane * layout.laneGap - verticalLabelWidth / 2) + "px";
       label.style.top = "28px";
-      label.style.width = "96px";
+      label.style.width = verticalLabelWidth + "px";
     } else {
-      label.style.top = (GRAPH_LAYOUT.margin.top + branch.lane * GRAPH_LAYOUT.laneGap - 15) + "px";
+      label.style.top = (layout.margin.top + branch.lane * layout.laneGap - 22) + "px";
     }
 
+    var nameRow = document.createElement("span");
+    nameRow.className = "branch-axis-name-row";
     var dot = document.createElement("span");
     dot.className = "branch-dot";
     dot.style.backgroundColor = branch.color;
@@ -103,7 +126,19 @@ function renderBranchAxis(context) {
     var text = document.createElement("span");
     text.textContent = branch.name;
 
-    label.append(dot, text);
+    nameRow.append(dot, text);
+    label.appendChild(nameRow);
+    var assignedPipelines = getAssignedPipelines(state.cicd, "branch", branch.id);
+    if (assignedPipelines.length) {
+      var badge = document.createElement("span");
+      badge.className = "cicd-axis-badge";
+      badge.tabIndex = 0;
+      badge.setAttribute("role", "button");
+      badge.dataset.cicdTargetType = "branch";
+      badge.dataset.cicdTargetId = branch.id;
+      badge.textContent = "CI/CD: " + assignedPipelines.length;
+      label.appendChild(badge);
+    }
     inner.appendChild(label);
   });
 
@@ -118,12 +153,13 @@ function renderLaneLines(context) {
   var width = context.width;
   var height = context.height;
   var orientation = context.orientation;
+  var laneGap = context.laneGap;
 
   state.branches.forEach(function (branch) {
     var start = positions.get(branch.startCommitId) || positions.get(branch.headCommitId);
     var head = positions.get(branch.headCommitId);
-    var x = margin.left + branch.lane * GRAPH_LAYOUT.laneGap;
-    var y = margin.top + branch.lane * GRAPH_LAYOUT.laneGap;
+    var x = margin.left + branch.lane * laneGap;
+    var y = margin.top + branch.lane * laneGap;
 
     if (orientation === "vertical") {
       var y1 = start ? start.y : margin.top;
@@ -284,8 +320,57 @@ function renderNodes(context) {
     message.textContent = truncate(commit.message, 24);
     group.appendChild(message);
 
+    var mergeDotTarget = getMergeDotTargetForCommit(state, commit.id);
+    if (mergeDotTarget && mergeDotTarget.count) {
+      var badgeWidth = mergeDotTarget.count > 9 ? 64 : 58;
+      var badge = svgEl("g", {
+        class: "svg-cicd-badge",
+        role: "button",
+        tabindex: "0",
+        "data-cicd-target-type": "merge_dot",
+        "data-cicd-target-id": mergeDotTarget.id,
+        "aria-label": "CI/CD pipelines assigned to merge dot",
+      });
+      badge.appendChild(svgEl("rect", {
+        class: "svg-cicd-badge-box",
+        x: String(pos.x + 14),
+        y: String(pos.y - 13),
+        width: String(badgeWidth),
+        height: "24",
+        rx: "7",
+      }));
+      var badgeText = svgEl("text", {
+        class: "svg-cicd-badge-label",
+        x: String(pos.x + 14 + badgeWidth / 2),
+        y: String(pos.y - 1),
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+      });
+      badgeText.textContent = "CI/CD " + mergeDotTarget.count;
+      badge.appendChild(badgeText);
+      group.appendChild(badge);
+    }
+
     svg.appendChild(group);
   });
+}
+
+function getMergeDotTargetForCommit(state, commitId) {
+  var mergeRequest = state.mergeRequests.find(function (mr) {
+    return mr.mergeCommitId === commitId;
+  });
+  if (!mergeRequest) return null;
+
+  var mergeDotId = getMergeDotId(mergeRequest);
+  var assigned = getAssignedPipelines(state.cicd, "merge_dot", mergeDotId);
+  if (!assigned.length && mergeDotId !== mergeRequest.id) {
+    assigned = getAssignedPipelines(state.cicd, "merge_dot", mergeRequest.id);
+  }
+
+  return {
+    id: mergeDotId,
+    count: assigned.length,
+  };
 }
 
 function renderTagLabels(context) {

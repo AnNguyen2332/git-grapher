@@ -4,20 +4,178 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Git Grapher</title>
-    <meta name="description" content="Git Grapher is a browser-based Git graph simulator with branch, commit, merge request, tag, and graph export flows.">
+    <meta name="description" content="Git Grapher is a visual Git playground for learning, teaching, and explaining Git workflows.">
     <link rel="icon" type="image/png" sizes="96x96" href="favicon.png">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <div class="app-shell">
+    <div class="landing-page" id="landingPage">
+      <header class="landing-nav">
+        <a class="landing-brand" href="/" aria-label="Git Grapher home">
+          <img class="brand-mark" src="logo.png" alt="" aria-hidden="true">
+          <span>Git Grapher</span>
+        </a>
+      </header>
+
+      <main>
+        <section class="landing-hero" aria-labelledby="landingHeroTitle">
+          <div class="hero-graph-scene" aria-hidden="true">
+            <span class="hero-lane hero-lane-main"></span>
+            <span class="hero-lane hero-lane-feature"></span>
+            <span class="hero-edge hero-edge-main"></span>
+            <span class="hero-edge hero-edge-merge"></span>
+            <span class="hero-node hero-node-1"></span>
+            <span class="hero-node hero-node-2"></span>
+            <span class="hero-node hero-node-3"></span>
+            <span class="hero-node hero-node-4"></span>
+            <span class="hero-label hero-label-main">main</span>
+            <span class="hero-label hero-label-feature">feature/login</span>
+            <span class="hero-tag">v1.0.0</span>
+          </div>
+          <div class="landing-hero-copy">
+            <p class="eyebrow">Visual Git playground</p>
+            <h1 id="landingHeroTitle">Visualize Git workflows without touching a real repository.</h1>
+            <p>Create branches, commits, merge requests, and tags in a visual playground. Export clean Git graphs for learning, teaching, and documentation.</p>
+            <div class="landing-cta-row">
+              <a class="button button-primary" href="/app" data-route="app" data-start-mode="blank" data-track="start_creating_clicked">Start creating</a>
+              <button class="button button-secondary" type="button" data-scroll-target="exampleGallery" data-track="explore_examples_clicked">Explore examples</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section problem-section" aria-labelledby="problemTitle">
+          <div class="section-copy">
+            <p class="eyebrow">Problem</p>
+            <h2 id="problemTitle">Git is easier to understand when you can see how every action changes the commit graph.</h2>
+          </div>
+          <ul class="problem-list">
+            <li>Git graphs are hard for beginners to visualize.</li>
+            <li>Drawing Git workflow diagrams manually is slow.</li>
+            <li>GitHub and GitLab graphs are not ideal for teaching step-by-step concepts.</li>
+            <li>Generic diagram tools do not understand branches, commits, merge requests, and tags.</li>
+          </ul>
+        </section>
+
+        <section class="landing-section steps-section" aria-labelledby="stepsTitle">
+          <div class="section-copy">
+            <p class="eyebrow">How it works</p>
+            <h2 id="stepsTitle">Build a workflow in three steps.</h2>
+          </div>
+          <ol class="step-list">
+            <li>Choose a template or start from scratch</li>
+            <li>Add Git actions visually</li>
+            <li>Export or reuse your graph</li>
+          </ol>
+        </section>
+
+        <section class="landing-section use-case-section" aria-labelledby="useCasesTitle">
+          <div class="section-copy">
+            <p class="eyebrow">Use cases</p>
+            <h2 id="useCasesTitle">A playground for learners, educators, and teams.</h2>
+          </div>
+          <div class="use-case-grid">
+            <article class="use-case-card">
+              <h3>For Learners</h3>
+              <p>Practice Git concepts without creating a real repository.</p>
+            </article>
+            <article class="use-case-card">
+              <h3>For Educators</h3>
+              <p>Prepare visual Git lessons and workshop materials.</p>
+            </article>
+            <article class="use-case-card">
+              <h3>For Teams</h3>
+              <p>Explain branching, release, and merge request workflows.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="landing-section example-section" id="exampleGallery" aria-labelledby="examplesTitle">
+          <div class="section-copy">
+            <p class="eyebrow">Examples</p>
+            <h2 id="examplesTitle">Open a ready-made Git scenario.</h2>
+          </div>
+          <div class="example-grid">
+            <article class="example-card">
+              <div class="mini-graph mini-linear" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <h3>Basic commit history</h3>
+              <p>Start with a simple linear main branch history.</p>
+              <button class="button button-secondary" type="button" data-template-id="basic-commit-history" data-template-source="landing">Open this scenario</button>
+            </article>
+            <article class="example-card">
+              <div class="mini-graph mini-feature" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <h3>Basic feature branch merge</h3>
+              <p>See a feature branch created, developed, and merged back into main.</p>
+              <button class="button button-secondary" type="button" data-template-id="feature-branch-workflow" data-template-source="landing">Open this scenario</button>
+            </article>
+            <article class="example-card">
+              <div class="mini-graph mini-mr" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <h3>Merge request flow</h3>
+              <p>Move work from feature to development, then promote it to main.</p>
+              <button class="button button-secondary" type="button" data-template-id="merge-request-flow" data-template-source="landing">Open this scenario</button>
+            </article>
+            <article class="example-card">
+              <div class="mini-graph mini-release" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <h3>Release tag workflow</h3>
+              <p>Merge stable work into main and create a clean release tag.</p>
+              <button class="button button-secondary" type="button" data-template-id="release-tag-workflow" data-template-source="landing">Open this scenario</button>
+            </article>
+            <article class="example-card">
+              <div class="mini-graph mini-protected" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <h3>Protected branch workflow</h3>
+              <p>Show protected main, development, feature branches, and a release tag.</p>
+              <button class="button button-secondary" type="button" data-template-id="protected-branch-workflow" data-template-source="landing">Open this scenario</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="landing-section pro-teaser" aria-labelledby="proTeaserTitle">
+          <div class="section-copy">
+            <p class="eyebrow">Pro validation</p>
+            <h2 id="proTeaserTitle">Pro features coming soon</h2>
+          </div>
+          <ul class="pro-list">
+            <li>Export SVG/PDF</li>
+            <li>High-resolution PNG</li>
+            <li>Remove watermark</li>
+            <li>Premium workflow templates</li>
+            <li>Presentation mode for teaching</li>
+          </ul>
+          <button class="button button-primary" type="button" data-open-waitlist>Join waitlist</button>
+        </section>
+      </main>
+
+      <footer class="landing-footer">
+        <div>
+          <strong>Git Grapher</strong>
+          <p>A visual Git playground for learning, teaching, and explaining Git workflows.</p>
+        </div>
+        <div class="footer-links">
+          <button class="link-button" type="button" data-open-feedback>Feedback</button>
+          <button class="link-button" type="button" data-open-waitlist>Waitlist</button>
+        </div>
+        <p class="privacy-note">Forms use Netlify Forms when deployed. Analytics events are lightweight product events and do not require login.</p>
+      </footer>
+    </div>
+
+    <div class="app-shell" id="appShell" hidden>
       <header class="topbar">
-        <div class="brand">
+        <a class="brand" href="/" data-route="landing" aria-label="Back to landing page">
           <img class="brand-mark" src="logo.png" alt="" aria-hidden="true">
           <div>
             <h1>Git Grapher</h1>
             <p id="stateSummary">Ready</p>
           </div>
-        </div>
+        </a>
 
         <div class="topbar-actions">
           <fieldset class="segmented" aria-label="Root branch name">
@@ -42,25 +200,57 @@
               <span>Vertical</span>
             </label>
           </fieldset>
+          <button class="button button-secondary" id="openTemplateGalleryButton" type="button">Templates</button>
           <button class="button button-secondary" id="resetButton" type="button">Reset</button>
-          <button class="button button-secondary" id="exportGraphButton" type="button">Export PNG</button>
+          <button class="button button-secondary" id="exportGraphButton" type="button">Export</button>
           <button class="button button-secondary" id="exportProjectButton" type="button">Export JSON</button>
           <button class="button button-secondary" id="importProjectButton" type="button">Import JSON</button>
+          <button class="button button-secondary" id="feedbackButton" type="button">Feedback</button>
           <input class="file-input" id="projectFileInput" type="file" accept=".json,application/json">
           <span class="topbar-feedback" id="projectFileFeedback" aria-live="polite"></span>
         </div>
       </header>
 
-      <main class="workspace">
+      <nav class="app-tabs" aria-label="Main workspace">
+        <button class="app-tab-button" type="button" data-main-tab="graph" aria-selected="true">Git Graph</button>
+        <button class="app-tab-button" type="button" data-main-tab="cicd" aria-selected="false">CI/CD</button>
+      </nav>
+
+      <main class="workspace app-tab-panel" id="gitGraphTabPanel" data-main-tab-panel="graph">
         <section class="graph-panel" aria-labelledby="graphTitle">
           <div class="graph-toolbar">
             <div>
               <p class="eyebrow">Graph</p>
               <h2 id="graphTitle">Repository history</h2>
             </div>
+            <div class="graph-zoom-controls" aria-label="Graph zoom controls">
+              <button class="button button-secondary mini-button" id="graphZoomOutButton" type="button">-</button>
+              <span class="graph-zoom-label" id="graphZoomLabel">100%</span>
+              <button class="button button-secondary mini-button" id="graphZoomInButton" type="button">+</button>
+              <button class="button button-secondary mini-button" id="graphZoomResetButton" type="button">Reset zoom</button>
+            </div>
             <div class="branch-legend" id="branchLegend" aria-label="Branches"></div>
           </div>
+          <div class="editor-guidance" id="editorGuidance">
+            <ol>
+              <li>Create a branch from the selected branch.</li>
+              <li>Add commits to build the history.</li>
+              <li>Merge branches and export the graph.</li>
+            </ol>
+            <p id="nextActionText">Next: Try creating a feature branch.</p>
+          </div>
           <div class="graph-body">
+            <section class="editor-empty-state" id="editorEmptyState" aria-labelledby="emptyStateTitle">
+              <p class="eyebrow">Start</p>
+              <h2 id="emptyStateTitle">Start with a Git workflow</h2>
+              <p>Choose a ready-made scenario or build your own graph from scratch.</p>
+              <div class="empty-state-actions">
+                <button class="button button-primary" type="button" data-template-id="feature-branch-workflow" data-template-source="onboarding">Feature Branch</button>
+                <button class="button button-secondary" type="button" data-template-id="merge-request-flow" data-template-source="onboarding">Merge Request Flow</button>
+                <button class="button button-secondary" type="button" data-template-id="release-tag-workflow" data-template-source="onboarding">Release Tag</button>
+                <button class="button button-dark" id="startBlankButton" type="button">Start Blank</button>
+              </div>
+            </section>
             <div class="branch-axis" id="branchAxis" aria-label="Branch lanes"></div>
             <div class="graph-scroll" id="graphScroll">
               <svg id="gitGraph" role="img" aria-label="Horizontal Git graph"></svg>
@@ -114,7 +304,7 @@
         </aside>
       </main>
 
-      <footer class="action-bar">
+      <footer class="action-bar app-tab-panel" data-main-tab-panel="graph">
         <section class="selected-panel" aria-labelledby="selectedTitle">
           <div>
             <p class="eyebrow">Selected</p>
@@ -135,115 +325,419 @@
         </section>
       </footer>
 
-      <div class="modal-backdrop" id="createBranchModal" hidden>
-        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="createBranchTitle">
-          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-          <h2 id="createBranchTitle">Create a branch</h2>
-          <form class="modal-form" id="createBranchForm">
-            <label class="field">
-              <span>Branch Name</span>
-              <input id="branchName" type="text" maxlength="32" autocomplete="off">
-            </label>
-            <fieldset class="field branch-source-field">
-              <legend>
-                <label class="option-toggle">
-                  <input id="branchFromEnabled" type="checkbox" checked>
-                  <span>Create branch from</span>
+      <section class="cicd-workspace app-tab-panel" id="cicdTabPanel" data-main-tab-panel="cicd" hidden>
+        <header class="cicd-header">
+          <div>
+            <p class="eyebrow">Configuration only</p>
+            <h2>CI/CD Workflow Configuration Designer</h2>
+          </div>
+          <button class="button button-secondary" id="loadCicdPresetButton" type="button">Load CI/CD preset</button>
+        </header>
+
+        <nav class="cicd-tabs" aria-label="CI/CD sections">
+          <button class="cicd-tab-button" type="button" data-cicd-tab="jobs" aria-selected="true">Jobs</button>
+          <button class="cicd-tab-button" type="button" data-cicd-tab="stages" aria-selected="false">Stages</button>
+          <button class="cicd-tab-button" type="button" data-cicd-tab="pipelines" aria-selected="false">Pipelines</button>
+          <button class="cicd-tab-button" type="button" data-cicd-tab="assignments" aria-selected="false">Assignments</button>
+        </nav>
+
+        <div class="cicd-grid">
+          <section class="cicd-editor" data-cicd-panel="jobs">
+            <form class="cicd-form" id="cicdJobForm">
+              <input id="cicdJobId" type="hidden">
+              <label class="field">
+                <span>Job name *</span>
+                <input id="cicdJobName" type="text" maxlength="48" autocomplete="off">
+              </label>
+              <label class="field">
+                <span>Description</span>
+                <textarea id="cicdJobDescription" maxlength="220"></textarea>
+              </label>
+              <p class="feedback" id="cicdJobFeedback" aria-live="polite"></p>
+              <div class="cicd-form-actions">
+                <button class="button button-primary" type="submit">Save job</button>
+                <button class="button button-secondary" id="cicdJobCancel" type="button">Clear</button>
+              </div>
+            </form>
+            <div class="cicd-list" id="cicdJobList"></div>
+          </section>
+
+          <section class="cicd-editor" data-cicd-panel="stages" hidden>
+            <form class="cicd-form" id="cicdStageForm">
+              <input id="cicdStageId" type="hidden">
+              <label class="field">
+                <span>Stage name *</span>
+                <input id="cicdStageName" type="text" maxlength="48" autocomplete="off">
+              </label>
+              <label class="field">
+                <span>Description</span>
+                <textarea id="cicdStageDescription" maxlength="220"></textarea>
+              </label>
+              <fieldset class="field">
+                <legend>Jobs</legend>
+                <div class="choice-group stacked" id="cicdStageJobs"></div>
+              </fieldset>
+              <fieldset class="field">
+                <legend>Dependencies</legend>
+                <div class="choice-group stacked" id="cicdStageDependencies"></div>
+              </fieldset>
+              <label class="option-toggle cicd-inline-toggle">
+                <input id="cicdStageSkip" type="checkbox">
+                <span>Mark this stage as skipped</span>
+              </label>
+              <p class="feedback" id="cicdStageFeedback" aria-live="polite"></p>
+              <div class="cicd-form-actions">
+                <button class="button button-primary" type="submit">Save stage</button>
+                <button class="button button-secondary" id="cicdStageCancel" type="button">Clear</button>
+              </div>
+            </form>
+            <div class="cicd-list" id="cicdStageList"></div>
+          </section>
+
+          <section class="cicd-editor" data-cicd-panel="pipelines" hidden>
+            <form class="cicd-form" id="cicdPipelineForm">
+              <input id="cicdPipelineId" type="hidden">
+              <label class="field">
+                <span>Pipeline name *</span>
+                <input id="cicdPipelineName" type="text" maxlength="56" autocomplete="off">
+              </label>
+              <label class="field">
+                <span>Description</span>
+                <textarea id="cicdPipelineDescription" maxlength="260"></textarea>
+              </label>
+              <fieldset class="field">
+                <legend>Stages</legend>
+                <div class="choice-group stacked" id="cicdPipelineStages"></div>
+              </fieldset>
+              <fieldset class="field">
+                <legend>Trigger rules</legend>
+                <label class="option-toggle cicd-inline-toggle">
+                  <input id="cicdTriggerMergeRequest" type="checkbox">
+                  <span>On Merge Request</span>
                 </label>
-              </legend>
-              <div class="choice-group" id="branchSourceChoices"></div>
-              <small class="field-hint">Uncheck to start a new independent branch.</small>
-            </fieldset>
-            <label class="field">
-              <span>First Commit Message</span>
-              <input id="branchFirstCommitMessage" type="text" maxlength="80" value="create new branch" autocomplete="off">
-            </label>
-            <p class="feedback" id="createBranchFeedback" aria-live="polite"></p>
-            <div class="modal-actions">
-              <button class="button button-primary" type="submit">Create</button>
-              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
-            </div>
-          </form>
-        </section>
-      </div>
+                <label class="option-toggle cicd-inline-toggle">
+                  <input id="cicdTriggerScheduled" type="checkbox">
+                  <span>Scheduled</span>
+                </label>
+                <div class="cicd-schedule-grid">
+                  <label class="field">
+                    <span>Mode</span>
+                    <select id="cicdScheduleMode">
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="custom_cron">Custom Cron</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Time</span>
+                    <input id="cicdScheduleTime" type="time" value="19:00">
+                  </label>
+                  <label class="field">
+                    <span>Day of week</span>
+                    <select id="cicdScheduleDayOfWeek">
+                      <option value="">Optional</option>
+                      <option value="monday">Monday</option>
+                      <option value="tuesday">Tuesday</option>
+                      <option value="wednesday">Wednesday</option>
+                      <option value="thursday">Thursday</option>
+                      <option value="friday">Friday</option>
+                      <option value="saturday">Saturday</option>
+                      <option value="sunday">Sunday</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Day of month</span>
+                    <input id="cicdScheduleDayOfMonth" type="number" min="1" max="31">
+                  </label>
+                  <label class="field cicd-cron-field">
+                    <span>Cron</span>
+                    <input id="cicdScheduleCron" type="text" maxlength="80" placeholder="0 19 * * *">
+                  </label>
+                </div>
+              </fieldset>
+              <p class="feedback" id="cicdPipelineFeedback" aria-live="polite"></p>
+              <div class="cicd-form-actions">
+                <button class="button button-primary" type="submit">Save pipeline</button>
+                <button class="button button-secondary" id="cicdPipelineCancel" type="button">Clear</button>
+              </div>
+            </form>
+            <div class="cicd-list" id="cicdPipelineList"></div>
+          </section>
 
-      <div class="modal-backdrop" id="commitModal" hidden>
-        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="commitModalTitle">
-          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-          <h2 id="commitModalTitle">Add commit</h2>
-          <form class="modal-form" id="commitForm">
-            <p class="modal-context" id="commitModalContext"></p>
-            <label class="field">
-              <span>Commit Message</span>
-              <input id="commitMessage" type="text" maxlength="80" placeholder="Add login screen" autocomplete="off">
-            </label>
-            <p class="feedback" id="commitFeedback" aria-live="polite"></p>
-            <div class="modal-actions">
-              <button class="button button-primary" type="submit">Create commit</button>
-              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
-            </div>
-          </form>
-        </section>
-      </div>
+          <section class="cicd-editor" data-cicd-panel="assignments" hidden>
+            <form class="cicd-form" id="cicdAssignmentForm">
+              <input id="cicdAssignmentId" type="hidden">
+              <label class="field">
+                <span>Target type</span>
+                <select id="cicdAssignmentTargetType">
+                  <option value="branch">Branch</option>
+                  <option value="merge_dot">Merge dot</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Target</span>
+                <select id="cicdAssignmentTarget"></select>
+              </label>
+              <fieldset class="field">
+                <legend>Assigned pipelines</legend>
+                <div class="choice-group stacked" id="cicdAssignmentPipelines"></div>
+              </fieldset>
+              <p class="feedback" id="cicdAssignmentFeedback" aria-live="polite"></p>
+              <div class="cicd-form-actions">
+                <button class="button button-primary" type="submit">Save assignment</button>
+                <button class="button button-secondary" id="cicdAssignmentCancel" type="button">Clear</button>
+              </div>
+            </form>
+            <div class="cicd-list" id="cicdAssignmentList"></div>
+          </section>
+        </div>
+      </section>
+    </div>
 
-      <div class="modal-backdrop" id="mergeRequestModal" hidden>
-        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeRequestModalTitle">
-          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-          <h2 id="mergeRequestModalTitle">Create merge request</h2>
-          <form class="modal-form" id="mergeRequestForm">
-            <label class="field">
-              <span>Source</span>
-              <select id="mrSource"></select>
-            </label>
-            <label class="field">
-              <span>Target</span>
-              <select id="mrTarget"></select>
-            </label>
-            <label class="field">
-              <span>Title</span>
-              <input id="mrTitle" type="text" maxlength="80" placeholder="Merge feature into main">
-            </label>
-            <p class="feedback" id="mergeRequestFeedback" aria-live="polite"></p>
-            <div class="modal-actions">
-              <button class="button button-primary" type="submit">Create MR</button>
-              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
-            </div>
-          </form>
-        </section>
-      </div>
-
-      <div class="modal-backdrop" id="tagModal" hidden>
-        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="tagModalTitle">
-          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-          <h2 id="tagModalTitle">Create tag</h2>
-          <form class="modal-form" id="tagForm">
-            <p class="modal-context" id="tagModalContext"></p>
-            <label class="field">
-              <span>Tag Name</span>
-              <input id="tagName" type="text" maxlength="32" placeholder="v1.0.0" autocomplete="off">
-            </label>
-            <p class="feedback" id="tagFeedback" aria-live="polite"></p>
-            <div class="modal-actions">
-              <button class="button button-primary" id="submitTagButton" type="submit">Create tag</button>
-              <button class="button button-ghost-danger" id="deleteTagButton" type="button" hidden>Delete tag</button>
-              <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
-            </div>
-          </form>
-        </section>
-      </div>
-
-      <div class="modal-backdrop" id="deleteModal" hidden>
-        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
-          <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-          <h2 id="deleteModalTitle">Confirm delete</h2>
-          <p class="modal-context" id="deleteModalMessage"></p>
-          <p class="feedback" id="deleteFeedback" aria-live="polite"></p>
+    <div class="modal-backdrop" id="createBranchModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="createBranchTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="createBranchTitle">Create a branch</h2>
+        <form class="modal-form" id="createBranchForm">
+          <label class="field">
+            <span>Branch Name</span>
+            <input id="branchName" type="text" maxlength="32" autocomplete="off">
+          </label>
+          <fieldset class="field branch-source-field">
+            <legend>
+              <label class="option-toggle">
+                <input id="branchFromEnabled" type="checkbox" checked>
+                <span>Create branch from</span>
+              </label>
+            </legend>
+            <div class="choice-group" id="branchSourceChoices"></div>
+            <small class="field-hint">Uncheck to start a new independent branch.</small>
+          </fieldset>
+          <label class="field">
+            <span>First Commit Message</span>
+            <input id="branchFirstCommitMessage" type="text" maxlength="80" value="create new branch" autocomplete="off">
+          </label>
+          <p class="feedback" id="createBranchFeedback" aria-live="polite"></p>
           <div class="modal-actions">
-            <button class="button button-danger" id="confirmDeleteButton" type="button">Delete</button>
+            <button class="button button-primary" type="submit">Create</button>
             <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
           </div>
-        </section>
-      </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="commitModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="commitModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="commitModalTitle">Add commit</h2>
+        <form class="modal-form" id="commitForm">
+          <p class="modal-context" id="commitModalContext"></p>
+          <label class="field">
+            <span>Commit Message</span>
+            <input id="commitMessage" type="text" maxlength="80" placeholder="Add login screen" autocomplete="off">
+          </label>
+          <p class="feedback" id="commitFeedback" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-primary" type="submit">Create commit</button>
+            <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="mergeRequestModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeRequestModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="mergeRequestModalTitle">Create merge request</h2>
+        <form class="modal-form" id="mergeRequestForm">
+          <label class="field">
+            <span>Source</span>
+            <select id="mrSource"></select>
+          </label>
+          <label class="field">
+            <span>Target</span>
+            <select id="mrTarget"></select>
+          </label>
+          <label class="field">
+            <span>Title</span>
+            <input id="mrTitle" type="text" maxlength="80" placeholder="Merge feature into main">
+          </label>
+          <p class="feedback" id="mergeRequestFeedback" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-primary" type="submit">Create MR</button>
+            <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="tagModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="tagModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="tagModalTitle">Create tag</h2>
+        <form class="modal-form" id="tagForm">
+          <p class="modal-context" id="tagModalContext"></p>
+          <label class="field">
+            <span>Tag Name</span>
+            <input id="tagName" type="text" maxlength="32" placeholder="v1.0.0" autocomplete="off">
+          </label>
+          <p class="feedback" id="tagFeedback" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-primary" id="submitTagButton" type="submit">Create tag</button>
+            <button class="button button-ghost-danger" id="deleteTagButton" type="button" hidden>Delete tag</button>
+            <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="deleteModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="deleteModalTitle">Confirm delete</h2>
+        <p class="modal-context" id="deleteModalMessage"></p>
+        <p class="feedback" id="deleteFeedback" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button class="button button-danger" id="confirmDeleteButton" type="button">Delete</button>
+          <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="templateGalleryModal" hidden>
+      <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="templateGalleryTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="templateGalleryTitle">Choose a template</h2>
+        <div class="template-grid" id="templateGalleryList"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="exportModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="exportModalTitle">Export graph</h2>
+        <div class="export-options">
+          <button class="export-option" type="button" data-export-option="png">
+            <strong>PNG</strong>
+            <span>Free</span>
+          </button>
+          <button class="export-option is-pro" type="button" data-pro-feature="PNG High Resolution">
+            <strong>PNG High Resolution</strong>
+            <span>Pro</span>
+          </button>
+          <button class="export-option is-pro" type="button" data-pro-feature="SVG">
+            <strong>SVG</strong>
+            <span>Pro</span>
+          </button>
+          <button class="export-option is-pro" type="button" data-pro-feature="PDF">
+            <strong>PDF</strong>
+            <span>Pro</span>
+          </button>
+          <button class="export-option is-pro" type="button" data-pro-feature="Transparent Background">
+            <strong>Transparent Background</strong>
+            <span>Pro</span>
+          </button>
+          <button class="export-option is-pro" type="button" data-pro-feature="Remove Watermark">
+            <strong>Remove Watermark</strong>
+            <span>Pro</span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="proModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="proModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="proModalTitle">Git Grapher Pro is coming soon</h2>
+        <p class="modal-context" id="proModalContext">Pro will include SVG/PDF export, high-resolution PNG, watermark removal, premium workflow templates, and presentation tools for educators.</p>
+        <p class="modal-context">Join the waitlist to get early access.</p>
+        <div class="modal-actions">
+          <button class="button button-primary" type="button" data-open-waitlist>Join waitlist</button>
+          <button class="button button-secondary" type="button" data-close-modal>Maybe later</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="waitlistModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="waitlistModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="waitlistModalTitle">Join waitlist</h2>
+        <form class="modal-form" id="waitlistForm" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+          <input type="hidden" name="form-name" value="waitlist">
+          <p class="sr-only">
+            <label>Do not fill this out <input name="bot-field"></label>
+          </p>
+          <label class="field">
+            <span>Email</span>
+            <input id="waitlistEmail" name="email" type="email" autocomplete="email" required>
+          </label>
+          <label class="field">
+            <span>Use case</span>
+            <input id="waitlistUseCase" name="use-case" type="text" maxlength="120" placeholder="Teaching a workshop" required>
+          </label>
+          <label class="field">
+            <span>Most wanted Pro feature</span>
+            <select id="waitlistFeature" name="most-wanted-feature" required>
+              <option>SVG/PDF export</option>
+              <option>High-resolution PNG</option>
+              <option>Remove watermark</option>
+              <option>Premium templates</option>
+              <option>Presentation mode</option>
+              <option>Share link</option>
+            </select>
+          </label>
+          <p class="feedback" id="waitlistFeedback" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-primary" type="submit">Join waitlist</button>
+            <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="feedbackModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="feedbackModalTitle">Feedback</h2>
+        <form class="modal-form" id="feedbackForm" name="feedback" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+          <input type="hidden" name="form-name" value="feedback">
+          <p class="sr-only">
+            <label>Do not fill this out <input name="bot-field"></label>
+          </p>
+          <label class="field">
+            <span>What are you using Git Grapher for?</span>
+            <select id="feedbackPurpose" name="purpose" required>
+              <option>Learning Git</option>
+              <option>Teaching Git</option>
+              <option>Writing documentation</option>
+              <option>Explaining workflow to a team</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>What feature do you want next?</span>
+            <textarea id="feedbackFeature" name="wanted-feature" maxlength="500" rows="4" required></textarea>
+          </label>
+          <label class="field">
+            <span>Would you pay for Pro export/templates?</span>
+            <select id="feedbackPay" name="would-pay" required>
+              <option>Maybe</option>
+              <option>Yes</option>
+              <option>No</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Email optional</span>
+            <input id="feedbackEmail" name="email" type="email" autocomplete="email">
+          </label>
+          <p class="feedback" id="feedbackFormFeedback" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-primary" type="submit">Send feedback</button>
+            <button class="button button-secondary" type="button" data-close-modal>Cancel</button>
+          </div>
+        </form>
+      </section>
     </div>
 
     <script type="module" src="src/app.js"></script>

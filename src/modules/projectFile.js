@@ -153,7 +153,123 @@ function validateProjectState(projectState) {
     }
   }
 
+  var cicdResult = validateCicdState(projectState, branchIds);
+  if (!cicdResult.ok) return cicdResult;
+
   return { ok: true };
+}
+
+function validateCicdState(projectState, branchIds) {
+  if (!Object.prototype.hasOwnProperty.call(projectState, "cicd") || projectState.cicd == null) {
+    return { ok: true };
+  }
+
+  var cicd = projectState.cicd;
+  if (typeof cicd !== "object" || Array.isArray(cicd)) {
+    return { ok: false, message: "Project file contains invalid CI/CD configuration." };
+  }
+
+  var requiredArrays = ["jobs", "stages", "pipelines", "assignments"];
+  for (var arrayIndex = 0; arrayIndex < requiredArrays.length; arrayIndex += 1) {
+    var key = requiredArrays[arrayIndex];
+    if (!Array.isArray(cicd[key])) {
+      return { ok: false, message: "Project file contains invalid CI/CD " + key + "." };
+    }
+  }
+
+  var jobIds = collectEntityIds(cicd.jobs, "job");
+  if (!jobIds.ok) return jobIds;
+  var stageIds = collectEntityIds(cicd.stages, "stage");
+  if (!stageIds.ok) return stageIds;
+  var pipelineIds = collectEntityIds(cicd.pipelines, "pipeline");
+  if (!pipelineIds.ok) return pipelineIds;
+
+  for (var stageIndex = 0; stageIndex < cicd.stages.length; stageIndex += 1) {
+    var stage = cicd.stages[stageIndex];
+    if (!isNonEmptyString(stage.name)) {
+      return { ok: false, message: "Project file contains a CI/CD stage without a name." };
+    }
+    if (!Array.isArray(stage.jobIds) || !Array.isArray(stage.dependencies)) {
+      return { ok: false, message: "Project file contains invalid CI/CD stage references." };
+    }
+    for (var jobIndex = 0; jobIndex < stage.jobIds.length; jobIndex += 1) {
+      if (!jobIds.ids.has(stage.jobIds[jobIndex])) {
+        return { ok: false, message: "Project file contains a CI/CD stage with a missing job." };
+      }
+    }
+    for (var dependencyIndex = 0; dependencyIndex < stage.dependencies.length; dependencyIndex += 1) {
+      if (!stageIds.ids.has(stage.dependencies[dependencyIndex])) {
+        return { ok: false, message: "Project file contains a CI/CD stage with a missing dependency." };
+      }
+    }
+  }
+
+  for (var pipelineIndex = 0; pipelineIndex < cicd.pipelines.length; pipelineIndex += 1) {
+    var pipeline = cicd.pipelines[pipelineIndex];
+    if (!isNonEmptyString(pipeline.name)) {
+      return { ok: false, message: "Project file contains a CI/CD pipeline without a name." };
+    }
+    if (!Array.isArray(pipeline.stageIds) || !Array.isArray(pipeline.triggers)) {
+      return { ok: false, message: "Project file contains invalid CI/CD pipeline references." };
+    }
+    for (var pipelineStageIndex = 0; pipelineStageIndex < pipeline.stageIds.length; pipelineStageIndex += 1) {
+      if (!stageIds.ids.has(pipeline.stageIds[pipelineStageIndex])) {
+        return { ok: false, message: "Project file contains a CI/CD pipeline with a missing stage." };
+      }
+    }
+  }
+
+  var mergeDotIds = new Set();
+  if (Array.isArray(projectState.mergeRequests)) {
+    projectState.mergeRequests.forEach(function (mr) {
+      if (mr && mr.mergeCommitId) mergeDotIds.add(mr.mergeCommitId);
+      if (mr && mr.id) mergeDotIds.add(mr.id);
+    });
+  }
+
+  for (var assignmentIndex = 0; assignmentIndex < cicd.assignments.length; assignmentIndex += 1) {
+    var assignment = cicd.assignments[assignmentIndex];
+    if (!isNonEmptyString(assignment.id) || !isNonEmptyString(assignment.targetId)) {
+      return { ok: false, message: "Project file contains an invalid CI/CD assignment." };
+    }
+    if (assignment.targetType !== "branch" && assignment.targetType !== "merge_dot") {
+      return { ok: false, message: "Project file contains an unsupported CI/CD assignment target." };
+    }
+    if (assignment.targetType === "branch" && !branchIds.has(assignment.targetId)) {
+      return { ok: false, message: "Project file contains a CI/CD assignment with a missing branch." };
+    }
+    if (assignment.targetType === "merge_dot" && !mergeDotIds.has(assignment.targetId)) {
+      return { ok: false, message: "Project file contains a CI/CD assignment with a missing merge dot." };
+    }
+    if (!Array.isArray(assignment.pipelineIds) || !assignment.pipelineIds.length) {
+      return { ok: false, message: "Project file contains a CI/CD assignment without pipelines." };
+    }
+    for (var assignmentPipelineIndex = 0; assignmentPipelineIndex < assignment.pipelineIds.length; assignmentPipelineIndex += 1) {
+      if (!pipelineIds.ids.has(assignment.pipelineIds[assignmentPipelineIndex])) {
+        return { ok: false, message: "Project file contains a CI/CD assignment with a missing pipeline." };
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
+function collectEntityIds(items, label) {
+  var ids = new Set();
+  for (var index = 0; index < items.length; index += 1) {
+    var item = items[index];
+    if (!item || typeof item !== "object" || Array.isArray(item) || !isNonEmptyString(item.id)) {
+      return { ok: false, message: "Project file contains invalid CI/CD " + label + " ids." };
+    }
+    if (!isNonEmptyString(item.name)) {
+      return { ok: false, message: "Project file contains a CI/CD " + label + " without a name." };
+    }
+    if (ids.has(item.id)) {
+      return { ok: false, message: "Project file contains duplicate CI/CD " + label + " ids." };
+    }
+    ids.add(item.id);
+  }
+  return { ok: true, ids: ids };
 }
 
 function cloneJson(value) {
