@@ -2732,7 +2732,7 @@ textarea,
 
 .landing-nav {
   height: var(--nav-height);
-  padding-inline: clamp(20px, 4vw, 72px);
+  padding-inline: calc(max(0px, (100% - var(--content-max)) / 2) + clamp(20px, 7vw, 96px));
   border-bottom-color: var(--border);
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 1px 0 rgba(23, 19, 33, 0.03);
@@ -2958,25 +2958,29 @@ textarea,
 }
 
 .app-tab-button {
-  min-height: 44px;
+  min-height: 48px;
+  padding: 0 16px;
   margin-bottom: -1px;
   border: 1px solid transparent;
-  border-bottom-color: var(--border);
+  border-bottom-color: transparent;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   color: var(--text-muted);
   letter-spacing: 0;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .app-tab-button:hover,
 .app-tab-button:focus-visible {
+  background: rgba(0, 0, 0, 0.03);
   color: var(--gl-orange-dark);
 }
 
 .app-tab-button[aria-selected="true"] {
   border-color: var(--border);
-  border-bottom-color: var(--surface);
+  border-bottom-color: var(--bg);
   background: var(--surface);
   color: var(--gl-orange-dark);
+  box-shadow: 0 2px 4px #00000015, 0 1px 4px #00000008, 0 2px 8px #00000004;
 }
 
 .workspace.app-tab-panel,
@@ -3344,26 +3348,34 @@ textarea,
 }
 
 .cicd-tabs {
-  gap: 8px;
-  padding: 2px 0;
+  gap: 2px;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .cicd-tab-button {
-  min-height: 34px;
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  min-height: 40px;
+  padding: 0 14px;
+  margin-bottom: -1px;
+  border: 1px solid transparent;
+  border-bottom-color: transparent;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .cicd-tab-button:hover {
-  border-color: rgba(107, 79, 187, 0.30);
-  background: var(--gl-purple-faint);
-  color: var(--gl-purple-dark);
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--gl-orange-dark);
 }
 
 .cicd-tab-button[aria-selected="true"] {
-  border-color: rgba(226, 67, 41, 0.34);
-  background: var(--gl-orange-light);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+  background: var(--surface);
   color: var(--gl-orange-dark);
+  box-shadow: 0 2px 4px #00000015, 0 1px 4px #00000008, 0 2px 8px #00000004;
 }
 
 .cicd-editor {
