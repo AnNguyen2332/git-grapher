@@ -1,4 +1,5 @@
 import { BRANCH_COLORS, GRAPH_ORIENTATIONS, PANEL_IDS, ROOT_NAMES, STORAGE_KEY } from "./config.js";
+import { CICD_MAIN_TABS, CICD_SUB_TABS, createEmptyCicdConfig, normalizeCicdConfig } from "./cicd.js";
 
 var HISTORY_STATE_KEY = STORAGE_KEY + "-history-state";
 
@@ -35,6 +36,7 @@ export function createInitialState(rootName) {
     ],
     mergeRequests: [],
     tags: [],
+    cicd: createEmptyCicdConfig(),
     actions: [
       {
         id: "a1",
@@ -51,6 +53,19 @@ export function createInitialState(rootName) {
         mergeRequests: false,
         actionLog: false,
       },
+      onboardingDismissed: false,
+      lastTemplateId: null,
+      graphZoom: 1,
+      activeMainTab: "graph",
+      activeCicdTab: "jobs",
+      selectedCicd: {
+        jobId: null,
+        stageId: null,
+        pipelineId: null,
+        assignmentId: null,
+        graphTargetType: null,
+        graphTargetId: null,
+      },
     },
     counters: {
       action: 1,
@@ -58,6 +73,10 @@ export function createInitialState(rootName) {
       commit: 1,
       mr: 0,
       tag: 0,
+      cicdJob: 0,
+      cicdStage: 0,
+      cicdPipeline: 0,
+      cicdAssignment: 0,
     },
   };
 }
@@ -147,11 +166,38 @@ export function normalizeState(nextState) {
     : "horizontal";
   nextState.mergeRequests = Array.isArray(nextState.mergeRequests) ? nextState.mergeRequests : [];
   nextState.tags = Array.isArray(nextState.tags) ? nextState.tags : [];
+  nextState.cicd = normalizeCicdConfig(nextState.cicd);
   nextState.actions = Array.isArray(nextState.actions) ? nextState.actions : [];
   nextState.ui = nextState.ui || {};
   nextState.ui.collapsedPanels = nextState.ui.collapsedPanels || {};
   PANEL_IDS.forEach(function (panelId) {
     nextState.ui.collapsedPanels[panelId] = !!nextState.ui.collapsedPanels[panelId];
+  });
+  nextState.ui.onboardingDismissed = !!nextState.ui.onboardingDismissed;
+  nextState.ui.lastTemplateId = typeof nextState.ui.lastTemplateId === "string"
+    ? nextState.ui.lastTemplateId
+    : null;
+  nextState.ui.graphZoom = typeof nextState.ui.graphZoom === "number"
+    ? Math.min(1.8, Math.max(0.65, nextState.ui.graphZoom))
+    : 1;
+  nextState.ui.activeMainTab = CICD_MAIN_TABS.indexOf(nextState.ui.activeMainTab) >= 0
+    ? nextState.ui.activeMainTab
+    : "graph";
+  nextState.ui.activeCicdTab = CICD_SUB_TABS.indexOf(nextState.ui.activeCicdTab) >= 0
+    ? nextState.ui.activeCicdTab
+    : "jobs";
+  nextState.ui.selectedCicd = nextState.ui.selectedCicd || {};
+  [
+    "jobId",
+    "stageId",
+    "pipelineId",
+    "assignmentId",
+    "graphTargetType",
+    "graphTargetId",
+  ].forEach(function (key) {
+    nextState.ui.selectedCicd[key] = typeof nextState.ui.selectedCicd[key] === "string"
+      ? nextState.ui.selectedCicd[key]
+      : null;
   });
   nextState.mergeRequests.forEach(function (mr) {
     if (!Object.prototype.hasOwnProperty.call(mr, "mergeCommitId")) mr.mergeCommitId = null;
@@ -205,6 +251,10 @@ export function normalizeState(nextState) {
   nextState.counters.mr = Math.max(nextState.mergeRequests.length, nextState.counters.mr || 0);
   nextState.counters.tag = Math.max(nextState.tags.length, nextState.counters.tag || 0);
   nextState.counters.action = Math.max(nextState.actions.length, nextState.counters.action || 0);
+  nextState.counters.cicdJob = Math.max(nextState.cicd.jobs.length, nextState.counters.cicdJob || 0);
+  nextState.counters.cicdStage = Math.max(nextState.cicd.stages.length, nextState.counters.cicdStage || 0);
+  nextState.counters.cicdPipeline = Math.max(nextState.cicd.pipelines.length, nextState.counters.cicdPipeline || 0);
+  nextState.counters.cicdAssignment = Math.max(nextState.cicd.assignments.length, nextState.counters.cicdAssignment || 0);
 
   return nextState;
 }
@@ -217,6 +267,10 @@ export function nextId(state, kind) {
     commit: "c",
     mr: "mr",
     tag: "t",
+    cicdJob: "job-",
+    cicdStage: "stage-",
+    cicdPipeline: "pipeline-",
+    cicdAssignment: "assign-",
   };
   return prefixes[kind] + state.counters[kind];
 }

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 218 66" width="218" height="66" aria-hidden="true">
+  <!-- Lanes -->
+  <line x1="24" y1="24" x2="210" y2="24" stroke="#6B4FBB" stroke-width="2" opacity="0.5"/>
+  <line x1="24" y1="58" x2="148" y2="58" stroke="#1F75CB" stroke-width="2" opacity="0.5"/>
+  <!-- Edges -->
+  <path d="M 24 24 C 88 24, -18 58, 46 58 L 86 58" fill="none" stroke="#1F75CB" stroke-width="2" opacity="0.88"/>
+  <path d="M 86 58 C 113.9 58, 120.1 58, 148 58" fill="none" stroke="#1F75CB" stroke-width="2" opacity="0.88"/>
+  <path d="M 24 24 C 107.7 24, 126.3 24, 210 24" fill="none" stroke="#6B4FBB" stroke-width="2" opacity="0.88"/>
+  <path d="M 148 58 C 175.9 58, 182.1 24, 210 24" fill="none" stroke="#1F75CB" stroke-width="1.5" opacity="0.75"/>
+  <!-- Tag ring on c4 -->
+  <circle cx="210" cy="24" r="16" fill="none" stroke="#B46200" stroke-width="2" stroke-dasharray="3 2" opacity="0.8"/>
+  <!-- Nodes -->
+  <circle cx="24" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+  <circle cx="86" cy="58" r="10" fill="#ffffff" stroke="#1F75CB" stroke-width="3"/>
+  <circle cx="148" cy="58" r="10" fill="#ffffff" stroke="#1F75CB" stroke-width="3"/>
+  <circle cx="210" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+</svg>

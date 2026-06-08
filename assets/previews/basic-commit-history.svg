@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 156 32" width="156" height="32" aria-hidden="true">
+  <!-- Lane: main -->
+  <line x1="24" y1="24" x2="148" y2="24" stroke="#6B4FBB" stroke-width="2" opacity="0.5"/>
+  <!-- Edges -->
+  <path d="M 24 24 C 51.9 24, 58.1 24, 86 24" fill="none" stroke="#6B4FBB" stroke-width="2" opacity="0.88"/>
+  <path d="M 86 24 C 113.9 24, 120.1 24, 148 24" fill="none" stroke="#6B4FBB" stroke-width="2" opacity="0.88"/>
+  <!-- Nodes -->
+  <circle cx="24" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+  <circle cx="86" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+  <circle cx="148" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+</svg>

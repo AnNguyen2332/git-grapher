@@ -13,5 +13,6 @@ await cp(resolve(root, "styles.css"), resolve(dist, "styles.css"));
 await cp(resolve(root, "favicon.png"), resolve(dist, "favicon.png"));
 await cp(resolve(root, "logo.png"), resolve(dist, "logo.png"));
 await cp(resolve(root, "src"), resolve(dist, "src"), { recursive: true });
+await cp(resolve(root, "assets"), resolve(dist, "assets"), { recursive: true });
 
 process.stdout.write("Built static site into dist/\n");

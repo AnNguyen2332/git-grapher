@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "preview": "python -m http.server 5173 --bind 127.0.0.1"
+    "preview": "node scripts/preview.mjs"
   }
 }

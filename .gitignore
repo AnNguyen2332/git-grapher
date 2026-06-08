@@ -2,6 +2,17 @@ dist/
 node_modules/
 .netlify/
 .codex-workspace/
+.codex/
+.claude/
+.playwright-cli/
+output/
+
+*.7z
+*.zip
 
 .DS_Store
 Thumbs.db
+ref_UI_UX.jsx
+save-thumbnails.mjs
+git_grapher_cicd_hover_oneshot_prompt.md
+prompt.md
