@@ -96,40 +96,40 @@
           </div>
           <div class="example-grid">
             <article class="example-card">
-              <div class="mini-graph mini-linear" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
+              <div class="mini-graph" aria-hidden="true">
+                <img src="assets/previews/basic-commit-history.png" alt="" loading="lazy">
               </div>
               <h3>Basic commit history</h3>
               <p>Start with a simple linear main branch history.</p>
               <button class="button button-secondary" type="button" data-template-id="basic-commit-history" data-template-source="landing">Open this scenario</button>
             </article>
             <article class="example-card">
-              <div class="mini-graph mini-feature" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
+              <div class="mini-graph" aria-hidden="true">
+                <img src="assets/previews/feature-branch-workflow.png" alt="" loading="lazy">
               </div>
               <h3>Basic feature branch merge</h3>
               <p>See a feature branch created, developed, and merged back into main.</p>
               <button class="button button-secondary" type="button" data-template-id="feature-branch-workflow" data-template-source="landing">Open this scenario</button>
             </article>
             <article class="example-card">
-              <div class="mini-graph mini-mr" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
+              <div class="mini-graph" aria-hidden="true">
+                <img src="assets/previews/merge-request-flow.png" alt="" loading="lazy">
               </div>
               <h3>Merge request flow</h3>
               <p>Move work from feature to development, then promote it to main.</p>
               <button class="button button-secondary" type="button" data-template-id="merge-request-flow" data-template-source="landing">Open this scenario</button>
             </article>
             <article class="example-card">
-              <div class="mini-graph mini-release" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
+              <div class="mini-graph" aria-hidden="true">
+                <img src="assets/previews/release-tag-workflow.png" alt="" loading="lazy">
               </div>
               <h3>Release tag workflow</h3>
               <p>Merge stable work into main and create a clean release tag.</p>
               <button class="button button-secondary" type="button" data-template-id="release-tag-workflow" data-template-source="landing">Open this scenario</button>
             </article>
             <article class="example-card">
-              <div class="mini-graph mini-protected" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
+              <div class="mini-graph" aria-hidden="true">
+                <img src="assets/previews/protected-branch-workflow.png" alt="" loading="lazy">
               </div>
               <h3>Protected branch workflow</h3>
               <p>Show protected main, development, feature branches, and a release tag.</p>
@@ -202,8 +202,15 @@
           </fieldset>
           <button class="button button-secondary" id="openTemplateGalleryButton" type="button">Templates</button>
           <button class="button button-secondary" id="resetButton" type="button">Reset</button>
-          <button class="button button-secondary" id="exportGraphButton" type="button">Export</button>
-          <button class="button button-secondary" id="exportProjectButton" type="button">Export JSON</button>
+          <div class="dropdown" id="exportDropdown">
+            <button class="button button-secondary dropdown-toggle" id="exportDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
+              Export <span class="dropdown-chevron" aria-hidden="true">▾</span>
+            </button>
+            <ul class="dropdown-menu" id="exportDropdownMenu" role="menu" hidden>
+              <li role="none"><button class="dropdown-item" type="button" id="exportGraphButton" role="menuitem">Export graph (PNG)</button></li>
+              <li role="none"><button class="dropdown-item" type="button" id="exportProjectButton" role="menuitem">Export JSON</button></li>
+            </ul>
+          </div>
           <button class="button button-secondary" id="importProjectButton" type="button">Import JSON</button>
           <button class="button button-secondary" id="feedbackButton" type="button">Feedback</button>
           <input class="file-input" id="projectFileInput" type="file" accept=".json,application/json">
@@ -419,7 +426,7 @@
                   <input id="cicdTriggerScheduled" type="checkbox">
                   <span>Scheduled</span>
                 </label>
-                <div class="cicd-schedule-grid">
+                <div class="cicd-schedule-grid" id="cicdScheduleGrid" hidden>
                   <label class="field">
                     <span>Mode</span>
                     <select id="cicdScheduleMode">
@@ -740,6 +747,14 @@
       </section>
     </div>
 
+    <script type="module">
+      import { FREE_TEMPLATES } from './src/modules/templates.js';
+      import { renderMiniGraph } from './src/modules/mini-graph.js';
+
+      var heroScene = document.querySelector('.hero-graph-scene');
+      var heroTpl = FREE_TEMPLATES.find(function (t) { return t.id === 'feature-branch-workflow'; });
+      if (heroScene && heroTpl) renderMiniGraph(heroScene, heroTpl.graph, true);
+    </script>
     <script type="module" src="src/app.js"></script>
   </body>
 </html>

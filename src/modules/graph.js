@@ -107,7 +107,12 @@ function renderBranchAxis(context) {
   state.branches.forEach(function (branch) {
     var label = document.createElement("div");
     label.className = "branch-axis-label";
-    label.title = branch.name;
+    label.tabIndex = 0;
+    label.setAttribute("role", "button");
+    label.setAttribute("aria-label", "Inspect CI/CD pipelines assigned to branch " + branch.name);
+    label.dataset.cicdTargetType = "branch";
+    label.dataset.cicdTargetId = branch.id;
+    label.dataset.cicdTargetLabel = branch.name;
     if (orientation === "vertical") {
       var verticalLabelWidth = Math.max(68, layout.laneGap - 12);
       label.style.left = (layout.margin.left + branch.lane * layout.laneGap - verticalLabelWidth / 2) + "px";
@@ -132,10 +137,9 @@ function renderBranchAxis(context) {
     if (assignedPipelines.length) {
       var badge = document.createElement("span");
       badge.className = "cicd-axis-badge";
-      badge.tabIndex = 0;
-      badge.setAttribute("role", "button");
       badge.dataset.cicdTargetType = "branch";
       badge.dataset.cicdTargetId = branch.id;
+      badge.dataset.cicdTargetLabel = branch.name;
       badge.textContent = "CI/CD: " + assignedPipelines.length;
       label.appendChild(badge);
     }
@@ -165,7 +169,10 @@ function renderLaneLines(context) {
       var y1 = start ? start.y : margin.top;
       var y2 = head ? Math.max(head.y, y1 + 38) : height - margin.bottom;
       svg.appendChild(svgEl("line", {
-        class: "svg-lane",
+        class: "svg-lane cicd-branch-lane-target",
+        "data-cicd-target-type": "branch",
+        "data-cicd-target-id": branch.id,
+        "data-cicd-target-label": branch.name,
         x1: String(x),
         y1: String(y1),
         x2: String(x),
@@ -178,7 +185,10 @@ function renderLaneLines(context) {
     var x2 = head ? Math.max(head.x, x1 + 38) : width - margin.right;
 
     svg.appendChild(svgEl("line", {
-      class: "svg-lane",
+      class: "svg-lane cicd-branch-lane-target",
+      "data-cicd-target-type": "branch",
+      "data-cicd-target-id": branch.id,
+      "data-cicd-target-label": branch.name,
       x1: String(x1),
       y1: String(y),
       x2: String(x2),
@@ -276,12 +286,18 @@ function renderNodes(context) {
     var pos = positions.get(commit.id);
     if (!pos) return;
 
-    var group = svgEl("g", {
+    var mergeDotTarget = getMergeDotTargetForCommit(state, commit.id);
+    var groupAttrs = {
       role: "button",
       tabindex: "0",
       "data-commit-id": commit.id,
       "aria-label": commit.id + " " + commit.message,
-    });
+    };
+    if (mergeDotTarget) {
+      groupAttrs["data-merge-dot-target-id"] = mergeDotTarget.id;
+      groupAttrs["data-merge-dot-target-label"] = mergeDotTarget.label;
+    }
+    var group = svgEl("g", groupAttrs);
 
     if (commit.id === state.selectedCommitId) {
       group.appendChild(svgEl("circle", {
@@ -320,7 +336,6 @@ function renderNodes(context) {
     message.textContent = truncate(commit.message, 24);
     group.appendChild(message);
 
-    var mergeDotTarget = getMergeDotTargetForCommit(state, commit.id);
     if (mergeDotTarget && mergeDotTarget.count) {
       var badgeWidth = mergeDotTarget.count > 9 ? 64 : 58;
       var badge = svgEl("g", {
@@ -329,6 +344,7 @@ function renderNodes(context) {
         tabindex: "0",
         "data-cicd-target-type": "merge_dot",
         "data-cicd-target-id": mergeDotTarget.id,
+        "data-cicd-target-label": mergeDotTarget.label,
         "aria-label": "CI/CD pipelines assigned to merge dot",
       });
       badge.appendChild(svgEl("rect", {
@@ -369,6 +385,7 @@ function getMergeDotTargetForCommit(state, commitId) {
 
   return {
     id: mergeDotId,
+    label: "Merge point",
     count: assigned.length,
   };
 }

@@ -164,14 +164,93 @@ export function getPipelineAssignmentForTarget(cicd, targetType, targetId) {
   }) || null;
 }
 
+export function getAssignmentsForTarget(cicd, targetType, targetId) {
+  if (!cicd || !Array.isArray(cicd.assignments)) return [];
+  return cicd.assignments.filter(function (assignment) {
+    return assignment.targetType === targetType && assignment.targetId === targetId;
+  });
+}
+
+export function getPipelineById(cicd, pipelineId) {
+  if (!cicd || !Array.isArray(cicd.pipelines)) return null;
+  return cicd.pipelines.find(function (pipeline) { return pipeline.id === pipelineId; }) || null;
+}
+
 export function getAssignedPipelines(cicd, targetType, targetId) {
   var assignment = getPipelineAssignmentForTarget(cicd, targetType, targetId);
   if (!assignment) return [];
   return assignment.pipelineIds
     .map(function (pipelineId) {
-      return cicd.pipelines.find(function (pipeline) { return pipeline.id === pipelineId; });
+      return getPipelineById(cicd, pipelineId);
     })
     .filter(Boolean);
+}
+
+export function getPipelinesForTarget(cicd, targetType, targetId) {
+  return getAssignmentsForTarget(cicd, targetType, targetId)
+    .flatMap(function (assignment) { return assignment.pipelineIds; })
+    .map(function (pipelineId) {
+      return getPipelineById(cicd, pipelineId) || {
+        id: pipelineId,
+        name: "Missing pipeline reference",
+        description: "",
+        stageIds: [],
+        triggers: [],
+        missing: true,
+      };
+    });
+}
+
+export function getStageById(cicd, stageId) {
+  if (!cicd || !Array.isArray(cicd.stages)) return null;
+  return cicd.stages.find(function (stage) { return stage.id === stageId; }) || null;
+}
+
+export function getStagesForPipeline(cicd, pipeline) {
+  if (!pipeline || !Array.isArray(pipeline.stageIds)) return [];
+  return pipeline.stageIds.map(function (stageId) {
+    return getStageById(cicd, stageId) || {
+      id: stageId,
+      name: "Missing stage reference",
+      description: "",
+      jobIds: [],
+      dependencies: [],
+      skip: false,
+      missing: true,
+    };
+  });
+}
+
+export function getJobById(cicd, jobId) {
+  if (!cicd || !Array.isArray(cicd.jobs)) return null;
+  return cicd.jobs.find(function (job) { return job.id === jobId; }) || null;
+}
+
+export function getJobsForStage(cicd, stage) {
+  if (!stage || !Array.isArray(stage.jobIds)) return [];
+  return stage.jobIds.map(function (jobId) {
+    return getJobById(cicd, jobId) || {
+      id: jobId,
+      name: "Missing job reference",
+      description: "",
+      missing: true,
+    };
+  });
+}
+
+export function getTriggerSummary(pipeline) {
+  if (!pipeline || !Array.isArray(pipeline.triggers)) return ["No trigger rule enabled"];
+  var enabledTriggers = pipeline.triggers
+    .filter(function (trigger) { return trigger.enabled; })
+    .map(formatTrigger)
+    .filter(Boolean);
+  return enabledTriggers.length ? enabledTriggers : ["No trigger rule enabled"];
+}
+
+export function getStageDependencyFlow(cicd, pipeline) {
+  var stages = getStagesForPipeline(cicd, pipeline);
+  if (!stages.length) return "No stages selected.";
+  return stages.map(function (stage) { return stage.name; }).join(" -> ");
 }
 
 export function getCicdPresetConfig() {

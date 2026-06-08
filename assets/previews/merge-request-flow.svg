@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 342 100" width="342" height="100" aria-hidden="true">
+  <!-- Lanes -->
+  <line x1="24" y1="24" x2="334" y2="24" stroke="#6B4FBB" stroke-width="2" opacity="0.5"/>
+  <line x1="24" y1="58" x2="272" y2="58" stroke="#1F75CB" stroke-width="2" opacity="0.5"/>
+  <line x1="86" y1="92" x2="210" y2="92" stroke="#B46200" stroke-width="2" opacity="0.5"/>
+  <!-- Edges -->
+  <path d="M 24 24 C 88 24, -18 58, 46 58 L 86 58" fill="none" stroke="#1F75CB" stroke-width="2" opacity="0.88"/>
+  <path d="M 86 58 C 150 58, 44 92, 108 92 L 148 92" fill="none" stroke="#B46200" stroke-width="2" opacity="0.88"/>
+  <path d="M 148 92 C 175.9 92, 182.1 92, 210 92" fill="none" stroke="#B46200" stroke-width="2" opacity="0.88"/>
+  <path d="M 86 58 C 169.7 58, 188.3 58, 272 58" fill="none" stroke="#1F75CB" stroke-width="2" opacity="0.88"/>
+  <path d="M 210 92 C 237.9 92, 244.1 58, 272 58" fill="none" stroke="#B46200" stroke-width="1.5" opacity="0.75"/>
+  <path d="M 24 24 C 163.5 24, 194.5 24, 334 24" fill="none" stroke="#6B4FBB" stroke-width="2" opacity="0.88"/>
+  <path d="M 272 58 C 299.9 58, 306.1 24, 334 24" fill="none" stroke="#1F75CB" stroke-width="1.5" opacity="0.75"/>
+  <!-- Nodes -->
+  <circle cx="24" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+  <circle cx="86" cy="58" r="10" fill="#ffffff" stroke="#1F75CB" stroke-width="3"/>
+  <circle cx="148" cy="92" r="10" fill="#ffffff" stroke="#B46200" stroke-width="3"/>
+  <circle cx="210" cy="92" r="10" fill="#ffffff" stroke="#B46200" stroke-width="3"/>
+  <circle cx="272" cy="58" r="10" fill="#ffffff" stroke="#1F75CB" stroke-width="3"/>
+  <circle cx="334" cy="24" r="10" fill="#ffffff" stroke="#6B4FBB" stroke-width="3"/>
+</svg>

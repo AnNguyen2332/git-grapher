@@ -4,14 +4,14 @@ export const ROOT_NAMES = ["main", "master"];
 export const GRAPH_ORIENTATIONS = ["horizontal", "vertical"];
 
 export const BRANCH_COLORS = [
-  "#64748B",
-  "#F59E0B",
-  "#22C55E",
-  "#ECC94B",
-  "#0BC5EA",
-  "#9F7AEA",
-  "#38B2AC",
-  "#ED64A6",
+  "#6B4FBB",
+  "#E24329",
+  "#1F75CB",
+  "#108548",
+  "#B46200",
+  "#737278",
+  "#4D3991",
+  "#C5300F",
 ];
 
 export const PANEL_IDS = ["branches", "mergeRequests", "actionLog"];
